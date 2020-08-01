@@ -1,10 +1,13 @@
 </$objtype/mkfile
 
-ui: ui.$O
-	$O^l -o ui ui.$O
+hwin: hwin.$O
+	$O^l -o hwin hwin.$O
 
-ui.$O: ui.c
-	$O^c ui.c
+hwin.$O: hwin.c
+	$O^c hwin.c
+
+install: hwin
+	cp hwin /$objtype/bin/hwin
 
 clean:
-	rm -f ui.[685qv] ui
+	rm -f hwin.[685qv] hwin
