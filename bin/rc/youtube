@@ -1,0 +1,7 @@
+#!/bin/rc
+
+url=$"*
+url=`{ echo $url | sed 's,watch\?v=,embed/,' | sed 's,\&.*$,,' }
+
+echo '<iframe style="width:100%;height:100%;" src="'^$url^'" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>' > /dev/innerHTML
+label youtube
