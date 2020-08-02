@@ -43,6 +43,7 @@ func wsHandler(ws *websocket.Conn, addr string) {
 		io.Copy(conn, base64.NewDecoder(base64.StdEncoding, ws))
 		conn.Close()
 		ws.Close()
+		fmt.Println("closed.");
 	}()
 	for {
 		n, err := conn.Read(buf[:])
