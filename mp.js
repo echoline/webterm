@@ -707,7 +707,7 @@ function mpmodadd(b1, b2, m, sum) {
 	sum.p.set(tmp, m.top+1);
 
 	d[0] = sum.p[2*m.top+1];
-	for(i = 0, j = m.top+1; i < m.tmp; i++, j++)
+	for(i = 0, j = m.top+1; i < m.top; i++, j++)
 		sum.p[i] = (sum.p[i] & d[0]) | (sum.p[j] & ~d[0]);
 
 	sum.top = m.top;

@@ -24,7 +24,7 @@ function authpak_curve() {
 }
 
 function authpak_hash(k, u) {
-	var info = "Plan 9 AuthPAK hash";
+	var info = new TextEncoder("utf-8").encode("Plan 9 AuthPAK hash");
 	var bp;
 	var salt = new Uint8Array(SHA2_256dlen);
 	var h = new Uint8Array(2 * PAKSLEN);
@@ -65,3 +65,106 @@ function authpak_hash(k, u) {
 	mptober(PT, k.pakhash, bp, PAKSLEN);
 }
 
+function authpak_new(p, k, y, isclient) {
+	var PX, PY, PZ, PT, X, Y;
+	var c;
+	var bp;
+	var buf = new Uint8Array(PAKSLEN*2);
+
+	p.isclient = isclient != 0;
+	p.x = new Uint8Array(PAKXLEN);
+	p.y = new Uint8Array(PAKYLEN);
+
+	X = mpnew(0);
+	Y = mpnew(0);
+
+	PX = mpnew(0);
+	PY = mpnew(0);
+	PZ = mpnew(0);
+	PT = mpnew(0);
+
+	PX.flags |= MPtimesafe;
+	PY.flags |= MPtimesafe;
+	PZ.flags |= MPtimesafe;
+	PT.flags |= MPtimesafe;
+
+	bp = PAKPLEN * (p.isclient == 0);
+	betomp(k.pakhash.slice(bp, bp + PAKSLEN), PAKSLEN, PX); bp += PAKSLEN;
+	betomp(k.pakhash.slice(bp, bp + PAKSLEN), PAKSLEN, PY); bp += PAKSLEN;
+	betomp(k.pakhash.slice(bp, bp + PAKSLEN), PAKSLEN, PZ); bp += PAKSLEN;
+	betomp(k.pakhash.slice(bp, bp + PAKSLEN), PAKSLEN, PT);
+
+	c = authpak_curve();
+
+	X.flags |= MPtimesafe;
+	mpnrand(c.P, genrandom, X)
+
+	spake2ee_1(c.P,c.A,c.D, X, c.X,c.Y, PX,PY,PZ,PT, Y);
+
+	mptober(X, p.x, 0, PAKXLEN);
+	mptober(Y, p.y, 0, PAKYLEN);
+
+	y.set(p.y, 0);
+}
+
+function authpak_finish(p, k, y) {
+	var info = new TextEncoder("utf-8").encode("Plan 9 AuthPAK key");
+	var bp;
+	var z = new Uint8Array(PAKSLEN);
+	var salt = new Uint8Array(SHA2_256dlen);
+	var PX, PY, PZ, PT, X, Y, Z, ok;
+	var s;
+	var c;
+	var ret;
+
+	X = mpnew(0);
+	Y = mpnew(0);
+	Z = mpnew(0);
+	ok = mpnew(0);
+
+	PX = mpnew(0);
+	PY = mpnew(0);
+	PZ = mpnew(0);
+	PT = mpnew(0);
+
+	PX.flags |= MPtimesafe;
+	PY.flags |= MPtimesafe;
+	PZ.flags |= MPtimesafe;
+	PT.flags |= MPtimesafe;
+
+	bp = PAKPLEN * (p.isclient != 0);
+	betomp(k.pakhash.slice(bp, bp + PAKSLEN), PAKSLEN, PX); bp += PAKSLEN;
+	betomp(k.pakhash.slice(bp, bp + PAKSLEN), PAKSLEN, PY); bp += PAKSLEN;
+	betomp(k.pakhash.slice(bp, bp + PAKSLEN), PAKSLEN, PZ); bp += PAKSLEN;
+	betomp(k.pakhash.slice(bp, bp + PAKSLEN), PAKSLEN, PT);
+
+	Z.flags |= MPtimesafe;
+	X.flags |= MPtimesafe;
+	betomp(p.x, PAKXLEN, X);
+
+	betomp(y, PAKYLEN, Y);
+
+	x = authpak_curve();
+	spake2ee_2(c.P,c.A,c.D, PX,PY,PZ,PT, X, Y, ok, Z);
+
+	if (mpcmp(ok, mpzero) != 0) {
+		mptober(Z, z, 0, PAKSLEN);
+
+		s = sha2_256(p.isclient ? p.y : y, PAKYLEN, null, null);
+		sha2_256(p.isclient ? y : p.y, PAKYLEN, salt, s);
+
+		k.pakkey = new Uint8Array(PAKKEYLEN);
+		hkdf_x(salt, SHA2_256dlen, info, info.length,
+			z, z.length, k.pakkey, PAKKEYLEN,
+			hmac_sha2_256, SHA2_256dlen);
+
+		ret = 0;
+	} else
+		ret = -1;
+
+	z = null;
+	p.x = null;
+	p.y = null;
+
+	return ret;
+}

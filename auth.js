@@ -23,6 +23,7 @@ function startauth() {
 	var conn;
 	var username = "blah";
 	var password = "blah";
+	var authkey = {aes:new Uint8Array(AESKEYLEN)};
 
 //	username = prompt("username", "");
 //	password = prompt("password", "");
@@ -85,6 +86,7 @@ function startauth() {
 				}
 				if(!authdom)
 					fatal("dp9ik not available");
+				authpak_hash(authkey, new TextEncoder("utf-8").encode(username));
 				break;
 			case 1:
 				state++;

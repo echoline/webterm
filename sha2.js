@@ -102,7 +102,7 @@ function sha2_64(p, len, digest, s, dlen) {
 	var b = 0;
 
 	if (!p)
-		p = new Uint8Array(64);
+		p = new Uint8Array(len);
 
 	if (s.blen) {
 		i = 64 - s.blen;
@@ -121,16 +121,15 @@ function sha2_64(p, len, digest, s, dlen) {
 
 	i = len & ~(64-1)
 	if(i){
-		p = p.slice(b);
 		sha2block64(p, i, s.state);
 		s.len += i;
 		len -= i;
-		b += i;
+		p = p.slice(i);
 	}
 
 	if (!digest) {
 		if(len){
-			s.buf.set(p.slice(b, b+len), 0);
+			s.buf.set(p.slice(0, len), 0);
 			s.blen += len;
 		}
 		return s;
@@ -140,7 +139,7 @@ function sha2_64(p, len, digest, s, dlen) {
 		p = s.buf;
 		len = s.blen;
 	} else {
-		buf.set(p.slice(b, b+len), 0);
+		buf.set(p.slice(0, len), 0);
 		p = buf;
 	}
 	s.len += len;
