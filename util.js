@@ -2,12 +2,16 @@ function fatal(msg) {
 	throw msg;
 }
 
-function randomdata(n) {
+function randomstring(n) {
+	return String.fromCharCode.apply(null, randombytes(n));
+}
+
+function randombytes(n) {
 	var s, i;
 
-	s = "";
+	s = new Uint8Array(n);
 	for(i = 0; i < n; i++)
-		s += String.fromCharCode(Math.floor(Math.random() * 256));
+		s[i] = Math.floor(Math.random() * 256);
 	return s;
 }
 

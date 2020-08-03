@@ -7,6 +7,11 @@ const AuthenticatorC = ["b56:YBs","b124:Ks","b68:Kn"];
 const AuthenticatorS = ["b68:Kn"];
 const Ticket = ["i1:num","b8:chal","b28:cuid","b28:suid","b32:key"];
 
+var username = "blah";
+var password = "blah";
+var authkey = {aes:new Uint8Array(AESKEYLEN)};
+var authpriv = {isclient:1};
+
 function newWebSocket(url) {
 	if(window.WebSocket != undefined)
 		return new WebSocket(url);
@@ -21,9 +26,6 @@ function startauth() {
 	var oncpumsg;
 	var authdom;
 	var conn;
-	var username = "blah";
-	var password = "blah";
-	var authkey = {aes:new Uint8Array(AESKEYLEN)};
 
 //	username = prompt("username", "");
 //	password = prompt("password", "");
@@ -42,6 +44,7 @@ function startauth() {
 	}
 	conn.onopen = function(evt) {
 		var cchal, schal, YBs, YBc, YAs, YAc, Ks, Kc;
+		var y;
 
 		state = 0;
 		oncpumsg = function() {
@@ -78,7 +81,7 @@ function startauth() {
 				for(i = 0; i < arr.length; i++){
 					arr2 = arr[i].split('@');
 					if(arr2[0] == 'dp9ik'){
-						cchal = randomdata(8);
+						cchal = randomstring(8);
 						conn.send(btoa(arr2[0] + ' ' + arr2[1] + '\0' + cchal));
 						authdom = arr2[1];
 						break;
@@ -86,7 +89,7 @@ function startauth() {
 				}
 				if(!authdom)
 					fatal("dp9ik not available");
-				authpak_hash(authkey, new TextEncoder("utf-8").encode(username));
+				//authpak_hash(authkey, new TextEncoder("utf-8").encode(username));
 				break;
 			case 1:
 				state++;
@@ -99,7 +102,9 @@ function startauth() {
 				schal = s.chal;
 				authid = s.authid;
 				YAs = s.YAs;
-				YAc = s.YAc = randomdata(56);
+				y = new Uint8Array(PAKYLEN);
+				//authpak_new(authpriv, authkey, y, 1);
+				YAc = s.YAc = String.fromCharCode.apply(null, y);
 				document.getElementById('terminal').firstChild.writeterminal('dom: ' + s.authdom + '\n');
 				s = pack(s, AuthPAKC2A);
 
@@ -136,7 +141,7 @@ function startauth() {
 
 						s.YBs = YBs;
 						s.Ks = Ks;
-						s.Kn = "form1 Ac" + randomdata(60);
+						s.Kn = "form1 Ac" + randomstring(60);
 						s = pack(s, AuthenticatorC);
 						conn.send(btoa(s));
 					}

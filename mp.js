@@ -23,7 +23,7 @@ function mpint() {
 
 const mptwo = {sign:1, size:1, top:1, flags:MPstatic|MPnorm, p:new Uint32Array([2])};
 const mpone = {sign:1, size:1, top:1, flags:MPstatic|MPnorm, p:new Uint32Array([1])};
-const mpzero = {sign:1, size:1, top:1, flags:MPstatic|MPnorm, p:new Uint32Array([0])};
+const mpzero = {sign:1, size:1, top:0, flags:MPstatic|MPnorm, p:new Uint32Array([0])};
 
 function iseven(a) {
 	return ((a.p[0] & 1) == 0);
@@ -745,6 +745,84 @@ function mpmodmul(b1, b2, m, prod) {
 
 	mpmul(a, b, prod);
 	mpmod(prod, m, prod);
+}
+
+function mpsel(s, b1, b2, res) {
+	var d = new Uint32Array(1);
+	var n, m, i;
+
+	res.flags |= (b1.flags | b2.flags) & MPtimesafe;
+	if ((res.flags & MPtimesafe) == 0) {
+		mpassign(s ? b1 : b2, res);
+		return;
+	}
+	res.flags &= ~MPnorm;
+
+	n = b1.top;
+	m = b2.top;
+	mpbits(res, Dbits*(n >= m ? n : m));
+	res.top = n >= m ? n : m;
+
+	s = (-s^s|s)>>>31;
+	res.sign = (b1.sign & s) | (b2.sign & ~s);
+
+	d[0] = -(s & 1);
+
+	i = 0;
+	while (i < n && i < m) {
+		res.p[i] = (b1.p[i] & d[0]) | (b2.p[i] & ~d);
+		i++;
+	}
+	while (i < n) {
+		res.p[i] = b1.p[i] & d[0];
+		i++;
+	}
+	while (i < m) {
+		res.p[i] = b2.p[i] & ~d[0];
+		i++;
+	}
+}
+
+function mprand(bits, gen, b) {
+	var mask = new Uint32Array(1);
+	var data;
+	var i;
+	var buf;
+
+	if (!b)
+		b = mpnew(bits);
+	else
+		mpbits(b, bits);
+
+	b.sign = 1;
+	b.top = DIGITS(bits);
+	data = gen(b.top * Dbytes);
+	buf = new Uint32Array(b.top);
+	for (i = 0; i < buf.length; i++)
+		buf[i] = data[i*4] | (data[i*4+1] << 8) | (data[i*4+2] << 16) | (data[i*4+3] << 24);
+	b.p.set(buf, 0);
+
+	mask[0] = (1 << (bits%Dbits))-1;
+	if (mask[0] != 0)
+		b.p[b.top-1] &= mask;
+
+	return mpnorm(b);
+}
+
+function mpnrand(n, gen, b) {
+	var bits;
+
+	bits = mpsignif(n);
+	if (bits == 0)
+		fatal("mpnrand: bits == 0");
+	if (!b) {
+		b = mpnew(bits);
+	}
+	do {
+		mprand(bits, gen, b);
+	} while(mpmagcmp(b, n) >= 0);
+
+	return b;
 }
 
 function between(x, min, max) {
