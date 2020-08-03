@@ -64,7 +64,7 @@ function mpnorm(b) {
 		if (b.sign != 1)
 			fatal("MPtimesafe in mpnorm");
 		b.flags &= ~MPnorm;
-		return;
+		return b;
 	}
 	for (i = b.top-1; i >= 0; i--)
 		if (b.p[i] != 0)
@@ -73,6 +73,8 @@ function mpnorm(b) {
 	if (b.top == 0)
 		b.sign = 1;
 	b.flags |= MPnorm;
+
+	return b;
 }
 
 function itomp(i) {
@@ -83,17 +85,7 @@ function itomp(i) {
 	b.p[0] = i;
 	b.top = 1;
 
-	mpnorm(b);
-	return b;
-}
-
-function uitomp(i) {
-	var b = mpnew(0);
-	b.p[0] = i[0];
-	b.top = 1;
-
-	mpnorm(b);
-	return b;
+	return mpnorm(b);
 }
 
 function mpbits(b, m) {
@@ -106,10 +98,12 @@ function mpbits(b, m) {
 			return;
 	} else {
 		b.size = n;
-		p = new Uint32Array(n);
+		p = new Uint32Array(n > b.p.length? n: b.p.length);
 		p.set(b.p, 0);
 		b.p = p;
 	}
+	for (i = b.top; i < n; i++)
+		b.p[i] = 0;
 	b.top = n;
 	b.flags &= ~MPnorm;
 }
@@ -124,7 +118,7 @@ function mpassign(old, n) {
 	n.top = old.top;
 	n.flags &= ~MPnorm;
 	n.flags |= old.flags & ~(MPstatic|MPfield);
-	n.p = new Uint32Array(n.size);
+	n.p = new Uint32Array(old.p.length > n.p.length? old.p.length: n.p.length);
 	n.p.set(old.p, 0);
 }
 
@@ -218,6 +212,35 @@ function mpleft(b, shift, res) {
 	mpnorm(res);
 }
 
+function mpvectscmp(a, alen, b, blen) {
+	var x = new Uint32Array(4);
+	var m, p;
+
+	if (alen > blen) {
+		x[3] = 0;
+		while (alen > blen)
+			x[3] |= a[--alen];
+		m = p = (-x[3]^x[3]|x[3])>>Dbits-1;
+	} else if (blen > alen) {
+		x[3] = 0;
+		while (blen > alen)
+			x[3] |= b[--blen];
+		m = (-x[3]^x[3]|x[3])>>Dbits>>1;
+		p = m^1;
+	} else
+		m = p = 0;
+	while (alen-- > 0) {
+		x[0] = a[alen];
+		x[1] = b[alen];
+		x[2] = x[0] - x[1];
+		x[0] = ~x[0];
+		x[3] = ((-x[2]^x[2]|x[2])>>Dbits-1) & ~m;
+		p = ((~(x[0]&x[1]|x[0]&x[2]|x[1]&x[2])>>Dbits-1) & x[3]) | (p & ~x[3]);
+		m |= x[3];
+	}
+	return (p-m) | m;
+}
+
 function mpveccmp(a, alen, b, blen) {
 	var x = new Uint32Array(1);
 
@@ -242,9 +265,11 @@ function mpveccmp(a, alen, b, blen) {
 
 function mpmagcmp(b1, b2) {
 	var i = b1.flags | b2.flags;
+	if (i & MPtimesafe)
+		return mpvectscmp(b1.p, b1.top, b2.p, b2.top);
 	if (i & MPnorm) {
 		i = b1.top - b2.top;
-		if (i != 0)
+		if (i)
 			return i;
 	}
 	return mpveccmp(b1.p, b1.top, b2.p, b2.top);
@@ -531,21 +556,24 @@ function mpvecmul(a, alen, b, blen, p) {
 	}
 }
 
-function mpmul(b1, b2, p) {
-	var prod = mpnew(0);
+function mpmul(b1, b2, prod) {
+	var oprod = prod;
 
-	if (b1 === p || b2 === p)
-		prod.flags = p.flags;
-
+	if (b1 === prod || b2 === prod) {
+		prod = mpnew(0);
+		prod.flags = oprod.flags;
+	}
 	prod.flags |= (b1.flags | b2.flags) & MPtimesafe;
+
 	prod.top = 0;
 	mpbits(prod, (b1.top+b2.top+1)*Dbits);
 	mpvecmul(b1.p, b1.top, b2.p, b2.top, prod.p);
 	prod.top = b1.top + b2.top + 1;
 	prod.sign = b1.sign * b2.sign;
-
 	mpnorm(prod);
-	mpassign(prod, p);
+
+	if (oprod !== prod)
+		mpassign(prod, oprod);
 }
 
 function mpdiv(dividend, divisor, quotient, remainder) {
@@ -681,13 +709,16 @@ function mpmod(x, n, r) {
 }
 
 function modarg(a, m) {
+	var i;
+
 	if (a.size < m.top || a.sign < 0 || mpmagcmp(a, m) >= 0) {
 		a = mpcopy(a);
 		mpmod(a, m, a);
 		mpbits(a, Dbits*(m.top+1));
 		a.top = m.top;
 	} else if (a.top < m.top) {
-		a.p.set(new Uint32Array(m.top - a.top), a.top);
+		for (i = a.top; i < m.top && i < a.p.length; i++)
+			a.p[i] = 0;
 	}
 	return a;
 }
@@ -949,8 +980,7 @@ function strtomp(str, base) {
 		return 0;
 
 	b.sign = sign;
-	mpnorm(b);
-	return b;
+	return mpnorm(b);
 }
 
 function betomp(p, n, b) {
@@ -977,7 +1007,7 @@ function betomp(p, n, b) {
 			x[0] = 0;
 		}
 	}
-	mpnorm(b);
+	return mpnorm(b);
 }
 
 function mptober(b, p, idx, n) {
@@ -1196,7 +1226,7 @@ function gmreduce(g, a, r) {
 	if(mpmagcmp(a, g.m2) >= 0)
 		return -1;
 
-	if(a != r)
+	if(a !== r)
 		mpassign(a, r);
 
 	d = g.f.m.top;
@@ -1280,11 +1310,10 @@ function gmfield(N) {
 			X[d*i + j] = X[d*(i-1) + j-1] + X[d*(i-1) + d-1]*X[d-j];
 	}
 	g = mpnew(0);
-	g.flags |= MPfield;
 	g.m2 = mpnew(d*2+1);
 	mpmul(N, N, g.m2);
 	mpassign(N, g);
-	g.f = mpnew(0);
+	g.f = {};
 	g.f.reduce = gmreduce;
 	g.f.m = g;
 	g.f.m.flags |= MPfield;

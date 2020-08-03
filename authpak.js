@@ -144,7 +144,7 @@ function authpak_finish(p, k, y) {
 
 	betomp(y, PAKYLEN, Y);
 
-	x = authpak_curve();
+	c = authpak_curve();
 	spake2ee_2(c.P,c.A,c.D, PX,PY,PZ,PT, X, Y, ok, Z);
 
 	if (mpcmp(ok, mpzero) != 0) {

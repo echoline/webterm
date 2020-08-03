@@ -1,11 +1,3 @@
-function fromutf8(s) {
-	return decodeURIComponent(escape(s));
-}
-
-function toutf8(s) {
-	return unescape(encodeURIComponent(s));
-}
-
 function newTerminal() {
 	var ta = document.createElement('textarea');
 

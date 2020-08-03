@@ -7,8 +7,8 @@ const AuthenticatorC = ["b56:YBs","b124:Ks","b68:Kn"];
 const AuthenticatorS = ["b68:Kn"];
 const Ticket = ["i1:num","b8:chal","b28:cuid","b28:suid","b32:key"];
 
-var username = "blah";
-var password = "blah";
+var username = "eli";
+var password;
 var authkey = {aes:new Uint8Array(AESKEYLEN)};
 var authpriv = {isclient:1};
 
@@ -89,7 +89,7 @@ function startauth() {
 				}
 				if(!authdom)
 					fatal("dp9ik not available");
-				//authpak_hash(authkey, new TextEncoder("utf-8").encode(username));
+				authpak_hash(authkey, new TextEncoder("utf-8").encode(username));
 				break;
 			case 1:
 				state++;
@@ -103,8 +103,8 @@ function startauth() {
 				authid = s.authid;
 				YAs = s.YAs;
 				y = new Uint8Array(PAKYLEN);
-				//authpak_new(authpriv, authkey, y, 1);
-				YAc = s.YAc = String.fromCharCode.apply(null, y);
+				authpak_new(authpriv, authkey, y, 1);
+				YAc = s.YAc = arr2str(y);
 				document.getElementById('terminal').firstChild.writeterminal('dom: ' + s.authdom + '\n');
 				s = pack(s, AuthPAKC2A);
 
@@ -120,6 +120,9 @@ function startauth() {
 						YBs = s.YBs;
 						YBc = s.YBc;
 						document.getElementById('terminal').firstChild.writeterminal('authpak: ' + s.type + '\n');
+
+						if (authpak_finish(authpriv, authkey, str2arr(YBc)))
+							fatal("authpak_finish failed");
 
 						s = {};
 						s.type = 1;
@@ -139,11 +142,11 @@ function startauth() {
 						document.getElementById('terminal').firstChild.writeterminal('auth: ' + s.type + '\n');
 						authconn.close();
 
-						s.YBs = YBs;
-						s.Ks = Ks;
-						s.Kn = "form1 Ac" + randomstring(60);
-						s = pack(s, AuthenticatorC);
-						conn.send(btoa(s));
+			//			s.YBs = YBs;
+			//			s.Ks = Ks;
+			//			s.Kn = "form1 Ac" + randomstring(60);
+			//			s = pack(s, AuthenticatorC);
+			//			conn.send(btoa(s));
 					}
 				}
 				authconn.onopen = function() {
