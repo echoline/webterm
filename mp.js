@@ -11,6 +11,8 @@ const mpmindigits = 33;
 
 const mppow10 = [1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000];
 
+const mpdighi = new Uint32Array([1<<(Dbits-1)]);
+
 function DIGITS(x) {
 	return Math.floor((Dbits - 1 + (x))/Dbits);
 }
@@ -19,20 +21,16 @@ function mpint() {
 	return {sign:1, size:0, top:0, flags:0, p:new Uint32Array([0])};
 }
 
-function mptwo() {
-	return {sign:1, size:1, top:1, flags:MPstatic|MPnorm, p:new Uint32Array([2])}
-}
+const mptwo = {sign:1, size:1, top:1, flags:MPstatic|MPnorm, p:new Uint32Array([2])};
+const mpone = {sign:1, size:1, top:1, flags:MPstatic|MPnorm, p:new Uint32Array([1])};
+const mpzero = {sign:1, size:1, top:1, flags:MPstatic|MPnorm, p:new Uint32Array([0])};
 
-function mpone() {
-	return {sign:1, size:1, top:1, flags:MPstatic|MPnorm, p:new Uint32Array([1])}
-}
-
-function mpzero() {
-	return {sign:1, size:1, top:1, flags:MPstatic|MPnorm, p:new Uint32Array([0])}
+function iseven(a) {
+	return ((a.p[0] & 1) == 0);
 }
 
 function mpcopy(m) {
-	var r = {};
+	var r = mpint();
 
 	r.size = m.size;
 	r.sign = m.sign;
@@ -66,7 +64,7 @@ function mpnorm(b) {
 		if (b.sign != 1)
 			fatal("MPtimesafe in mpnorm");
 		b.flags &= ~MPnorm;
-		return b;
+		return;
 	}
 	for (i = b.top-1; i >= 0; i--)
 		if (b.p[i] != 0)
@@ -75,7 +73,6 @@ function mpnorm(b) {
 	if (b.top == 0)
 		b.sign = 1;
 	b.flags |= MPnorm;
-	return b;
 }
 
 function itomp(i) {
@@ -86,7 +83,8 @@ function itomp(i) {
 	b.p[0] = i;
 	b.top = 1;
 
-	return mpnorm(b);
+	mpnorm(b);
+	return b;
 }
 
 function uitomp(i) {
@@ -94,7 +92,8 @@ function uitomp(i) {
 	b.p[0] = i[0];
 	b.top = 1;
 
-	return mpnorm(b);
+	mpnorm(b);
+	return b;
 }
 
 function mpbits(b, m) {
@@ -104,7 +103,7 @@ function mpbits(b, m) {
 
 	if (b.size >= n) {
 		if (b.top >= n)
-			return b;
+			return;
 	} else {
 		b.size = n;
 		p = new Uint32Array(n);
@@ -113,23 +112,20 @@ function mpbits(b, m) {
 	}
 	b.top = n;
 	b.flags &= ~MPnorm;
-
-	return b;
 }
 
 function mpassign(old, n) {
-	if (!n || !old)
-		return 0;
+	if (!n || old === n)
+		return;
 
 	n.top = 0;
-	n = mpbits(n, Dbits*old.top);
+	mpbits(n, Dbits*old.top);
 	n.sign = old.sign;
 	n.top = old.top;
 	n.flags &= ~MPnorm;
 	n.flags |= old.flags & ~(MPstatic|MPfield);
-	n.p = new Uint32Array(old.p);
-
-	return n;
+	n.p = new Uint32Array(n.size);
+	n.p.set(old.p, 0);
 }
 
 function mpright(b, shift, res) {
@@ -139,18 +135,18 @@ function mpright(b, shift, res) {
 	res.sign = b.sign;
 	if (b.top == 0) {
 		res.top = 0;
-		return res;
+		return;
 	}
 
 	if (shift < 0) {
-		res = mpleft(b, -shift, res);
-		return res;
+		mpleft(b, -shift, res);
+		return;
 	}
 
 	if (res !== b)
-		res = mpbits(res, b.top*Dbits - shift);
+		mpbits(res, b.top*Dbits - shift);
 	else if (shift == 0)
-		return res;
+		return;
 
 	d = Math.floor(shift/Dbits);
 	r = shift - d*Dbits;
@@ -159,7 +155,7 @@ function mpright(b, shift, res) {
 	if (d >= b.top) {
 		res.sign = 1;
 		res.top = 0;
-		return res;
+		return;
 	}
 
 	if (r == 0) {
@@ -169,15 +165,15 @@ function mpright(b, shift, res) {
 		t[1] = b.p[d];
 		for (i = 0; i < b.top-d-1; i++) {
 			t[0] = b.p[i+d+1];
-			res.p[i] = (t[0]<<l) | (t[1]>>r);
+			res.p[i] = (t[0]<<l) | (t[1]>>>r);
 			t[1] = t[0];
 		}
-		res.p[i++] = t[1]>>r;
+		res.p[i++] = t[1]>>>r;
 	}
 
 	res.top = i;
 	res.flags |= b.flags & MPtimesafe;
-	return mpnorm(res);
+	mpnorm(res);
 }
 
 function mpleft(b, shift, res) {
@@ -187,17 +183,17 @@ function mpleft(b, shift, res) {
 	res.sign = b.sign;
 	if (b.top == 0) {
 		res.top = 0;
-		return res;
+		return;
 	}
 
 	if (shift <= 0){
-		res = mpright(b, -shift, res);
-		return res;
+		mpright(b, -shift, res);
+		return;
 	}
 
 	otop = b.top;
 
-	res = mpbits(res, otop*Dbits + shift);
+	mpbits(res, otop*Dbits + shift);
 	res.top = DIGITS(otop*Dbits + shift);
 	d = Math.floor(shift/Dbits)
 	l = shift - d*Dbits;
@@ -210,7 +206,7 @@ function mpleft(b, shift, res) {
 		t[1] = 0;
 		for(i = otop-1; i >= 0; i--) {
 			t[0] = b.p[i];
-			res.p[i+d+1] = (t[1]<<l) | (t[0]>>r);
+			res.p[i+d+1] = (t[1]<<l) | (t[0]>>>r);
 			t[1] = t[0];
 		}
 		res.p[d] = t[1]<<l;
@@ -219,7 +215,7 @@ function mpleft(b, shift, res) {
 		res.p[i] = 0;
 
 	res.flags |= b.flags & MPtimesafe;
-	return mpnorm(res);
+	mpnorm(res);
 }
 
 function mpveccmp(a, alen, b, blen) {
@@ -287,8 +283,6 @@ function mpvecsub(a, alen, b, blen, diff) {
 			borrow = 0;
 		diff[i] = x[1];
 	}
-
-	return diff;
 }
 
 function mpmagsub(b1, b2, diff) {
@@ -296,7 +290,7 @@ function mpmagsub(b1, b2, diff) {
 	var t;
 
 	if (mpmagcmp(b1, b2) < 0) {
-		if (((b1.flags | b1.flags | diff.flags) & MPtimesafe) != 0)
+		if ((b1.flags | b1.flags | diff.flags) & MPtimesafe)
 			fatal("MPtimesafe in mpmagsub");
 		sign = -1;
 		t = b1;
@@ -309,36 +303,34 @@ function mpmagsub(b1, b2, diff) {
 	n = b1.top;
 	m = b2.top;
 	if (m == 0) {
-		diff = mpassign(b1, diff);
+		mpassign(b1, diff);
 		diff.sign = sign;
-		return diff;
+		return;
 	}
-	diff = mpbits(diff, n*Dbits);
+	mpbits(diff, n*Dbits);
 
-	diff.p = mpvecsub(b1.p, n, b2.p, m, diff.p);
+	mpvecsub(b1.p, n, b2.p, m, diff.p);
 	diff.sign = sign;
 	diff.top = n;
-	return mpnorm(diff);
+	mpnorm(diff);
 }
 
 function mpsub(b1, b2, diff) {
 	var sign;
 
 	if (b1.sign != b2.sign) {
-		if (((b1.flags | b1.flags | diff.flags) & MPtimesafe) != 0)
+		if ((b1.flags | b1.flags | diff.flags) & MPtimesafe)
 			fatal("MPtimesafe in mpsub");
 		sign = b1.sign;
-		diff = mpmagadd(b1, b2, diff);
+		mpmagadd(b1, b2, diff);
 		diff.sign = sign;
-		return diff;
+		return;
 	}
 
 	sign = b1.sign;
-	diff = mpmagsub(b1, b2, diff);
+	mpmagsub(b1, b2, diff);
 	if (diff.top != 0)
 		diff.sign *= sign;
-
-	return diff;
 }
 
 function mpvecadd(a, alen, b, blen, sum) {
@@ -368,8 +360,6 @@ function mpvecadd(a, alen, b, blen, sum) {
 		sum[i] = x[0];
 	}
 	sum[i] = carry;
-
-	return sum;
 }
 
 function mpmagadd(b1, b2, sum) {
@@ -386,40 +376,39 @@ function mpmagadd(b1, b2, sum) {
 	n = b1.top;
 	m = b2.top;
 	if (n == 0){
-		return mpzero();
+		mpassign(mpzero, sum);
+		return;
 	}
 	if (m == 0){
-		sum = mpassign(b1, sum);
+		mpassign(b1, sum);
 		sum.sign = 1;
-		return sum;
+		return;
 	}
-	sum = mpbits(sum, (n+1)*Dbits);
+	mpbits(sum, (n+1)*Dbits);
 	sum.top = n+1;
 
-	sum.p = mpvecadd(b1.p, n, b2.p, m, sum.p);
+	mpvecadd(b1.p, n, b2.p, m, sum.p);
 	sum.sign = 1;
 
-	return mpnorm(sum);
+	mpnorm(sum);
 }
 
 function mpadd(b1, b2, sum) {
 	var sign;
 
 	if(b1.sign != b2.sign) {
-		if (((b1.flags | b2.flags | sum.flags) & MPtimesafe) != 0)
+		if ((b1.flags | b2.flags | sum.flags) & MPtimesafe)
 			fatal("MPtimesafe in mpadd");
 		if (b1.sign < 0)
-			sum = mpmagsub(b2, b1, sum);
+			mpmagsub(b2, b1, sum);
 		else
-			sum = mpmagsub(b1, b2, sum);
+			mpmagsub(b1, b2, sum);
 	} else {
 		sign = b1.sign;
-		sum = mpmagadd(b1, b2, sum);
+		mpmagadd(b1, b2, sum);
 		if (sum.top != 0)
 			sum.sign = sign;
 	}
-
-	return sum;
 }
 
 function LO(x) {
@@ -458,8 +447,6 @@ function mpdigmul(a, ai, b, bi, part)
 	p[3] += carry + HI(p[0]) + HI(p[1]);
 	part[0] = p[2];
 	part[1] = p[3];
-
-	return part;
 }
 
 function mpvecdigmulsub(b, n, m, p, j)
@@ -510,7 +497,7 @@ function mpvecdigmuladd(b, n, m, p, j)
 		else
 			carry = 0;
 		x[1] = p[j];
-		part = mpdigmul(b, i, m, 0, part);
+		mpdigmul(b, i, m, 0, part);
 		x[0] += part[0];
 		if (x[0] < part[0])
 			carry++;
@@ -521,8 +508,6 @@ function mpvecdigmuladd(b, n, m, p, j)
 		j++;
 	}
 	p[j] = part[1] + carry;
-
-	return p;
 }
 
 function mpvecmul(a, alen, b, blen, p) {
@@ -542,10 +527,8 @@ function mpvecmul(a, alen, b, blen, p) {
 		t = new Uint32Array(1);
 		t[0] = b[i];
 		if (t[0] != 0)
-			p = mpvecdigmuladd(a, alen, t, p, i);
+			mpvecdigmuladd(a, alen, t, p, i);
 	}
-
-	return p;
 }
 
 function mpmul(b1, b2, p) {
@@ -556,16 +539,216 @@ function mpmul(b1, b2, p) {
 
 	prod.flags |= (b1.flags | b2.flags) & MPtimesafe;
 	prod.top = 0;
-	prod = mpbits(prod, (b1.top+b2.top+1)*Dbits);
-	prod.p = mpvecmul(b1.p, b1.top, b2.p, b2.top, prod.p);
+	mpbits(prod, (b1.top+b2.top+1)*Dbits);
+	mpvecmul(b1.p, b1.top, b2.p, b2.top, prod.p);
 	prod.top = b1.top + b2.top + 1;
 	prod.sign = b1.sign * b2.sign;
 
-	return mpnorm(prod);
+	mpnorm(prod);
+	mpassign(prod, p);
+}
+
+function mpdiv(dividend, divisor, quotient, remainder) {
+	var j, s, vn, sign, qsign, rsign;
+	var qd = new Uint32Array(1);
+	var up, vp, qp;
+	var u, v, t;
+	var tmp;
+
+	if (quotient === remainder)
+		fatal("mpdiv: quotient === remainder");
+	if (!(divisor.flags & MPnorm))
+		fatal("mpdiv: divisor MPnorm");
+	if (divisor.top == 0)
+		fatal("mpdiv: division by 0");
+
+	if (divisor.top == 1 && (divisor.p[0] & divisor.p[0]-1) == 0) {
+		var r = mpnew(0);
+		if (dividend.top > 0) {
+			r.top = 1;
+			r.p[0] = dividend.p[0] & divisor.p[0]-1;
+			r.sign = dividend.sign;
+		}
+		if (quotient) {
+			sign = divisor.sign;
+			for (s = 0; ((divisor.p[0] >>> s) & 1) == 0; s++);
+			mpright(dividend, s, quotient);
+			if (sign < 0)
+				quotient.sign ^= (-mpmagcmp(quotient, mpzero) >>> 31) << 1;
+		}
+		if (remainder) {
+			mpassign(r, remainder);
+			remainder.flags |= dividend.flags & MPtimesafe;
+		}
+		return;
+	}
+	if (dividend.flags & MPtimesafe)
+		fatal("mpdiv: dividend has MPtimesafe flag");
+
+	if(mpmagcmp(dividend, divisor) < 0) {
+		if (remainder)
+			mpassign(dividend, remainder);
+		if (quotient)
+			mpassign(mpzero, quotient);
+		return;
+	}
+
+	qsign = divisor.sign * dividend.sign;
+	rsign = dividend.sign;
+
+	qd[0] = divisor.p[divisor.top-1];
+	for (s = 0; (qd[0] & mpdighi[0]) == 0; s++)
+		qd[0] <<= 1;
+	u = mpnew((dividend.top+2)*Dbits + s);
+	if (s == 0 && divisor !== quotient && divisor !== remainder) {
+		mpassign(dividend, u);
+		v = divisor;
+	} else {
+		mpleft(dividend, s, u);
+		v = mpnew(divisor.top*Dbits);
+		mpleft(divisor, s, v);
+	}
+	up = u.top-1;
+	vp = v.top-1;
+	vn = v.top;
+
+	if (u.p[up] >= v.p[vp]) {
+		u.p[++up] = 0;
+		u.top++;
+	}
+
+	t = mpnew(4*Dbits);
+
+	qp = null;
+	if (quotient) {
+		mpbits(quotient, (u.top - v.top)*Dbits);
+		quotient.top = u.top - v.top;
+		qp = quotient.top-1;
+	}
+
+	for (j = u.top; j > vn; j--) {
+		mpdigdiv(u.p, up-1, v.p, vp, qd);
+
+		if (vn > 1) for(;;) {
+			t.p.set(new Uint32Array(3), 0);
+			mpvecdigmuladd(v.p.slice(vp-1), 2, qd, t.p, 0);
+			if (mpveccmp(t.p, 3, u.p.slice(up-2), 3))
+				qd[0]--;
+			else
+				break;
+		}
+
+		sign = mpvecdigmulsub(v.p, vn, qd, u.p, up-vn);
+		if (sign < 0) {
+			tmp = new Uint32Array(vn+1);
+			mpvecadd(u.p.slice(up-vn), vn+1, v.p, vn, tmp)
+			u.p.set(tmp, up-vn);
+			qd[0]--;
+		}
+
+		if (qp != null)
+			quotient.p[qp--] = qd[0];
+
+		u.top--;
+		u.p[up--] = 0;
+	}
+	if (qp != null) {
+		if (quotient.flags & MPtimesafe)
+			fatal("mpdiv: quotient has MPtimesafe flag");
+		mpnorm(quotient);
+		if (quotient.top != 0)
+			quotient.sign = qsign;
+	}
+	if (remainder) {
+		if (remainder.flags & MPtimesafe)
+			fatal("mpdiv: remainder has MPtimesafe flag");
+		mpright(u, s, remainder);
+		if (remainder.top != 0)
+			remainder.sign = rsign;
+	}
+}
+
+function mpmod(x, n, r) {
+	var sign;
+	var ns;
+
+	sign = x.sign;
+	ns = sign < 0 && n === r? mpcopy(n): n;
+	if ((n.flags & MPfield) == 0 || n.f.reduce(n, x, r) != 0)
+		mpdiv(x, n, null, r);
+	if (sign < 0)
+		mpmagsub(ns, r, r);
+}
+
+function modarg(a, m) {
+	if (a.size < m.top || a.sign < 0 || mpmagcmp(a, m) >= 0) {
+		a = mpcopy(a);
+		mpmod(a, m, a);
+		mpbits(a, Dbits*(m.top+1));
+		a.top = m.top;
+	} else if (a.top < m.top) {
+		a.p.set(new Uint32Array(m.top - a.top), a.top);
+	}
+	return a;
+}
+
+function mpmodadd(b1, b2, m, sum) {
+	var a = modarg(b1, m);
+	var b = modarg(b2, m);
+	var d = new Uint32Array(1);
+	var i, j;
+	var tmp = new Uint32Array(m.top+1);
+
+	sum.flags |= (a.flags | b.flags) & MPtimesafe;
+	mpbits(sum, Dbits*2*(m.top+1));
+
+	mpvecadd(a.p, m.top, b.p, m.top, sum.p);
+	mpvecsub(sum.p, m.top+1, m.p, m.top, tmp);
+	sum.p.set(tmp, m.top+1);
+
+	d[0] = sum.p[2*m.top+1];
+	for(i = 0, j = m.top+1; i < m.tmp; i++, j++)
+		sum.p[i] = (sum.p[i] & d[0]) | (sum.p[j] & ~d[0]);
+
+	sum.top = m.top;
+	sum.sign = 1;
+	mpnorm(sum);
+}
+
+function mpmodsub(b1, b2, m, diff) {
+	var a = modarg(b1, m);
+	var b = modarg(b2, m);
+	var d = new Uint32Array(1);
+	var i, j;
+	var tmp = new Uint32Array(m.top);
+
+	diff.flags |= (a.flags | b.flags) & MPtimesafe;
+	mpbits(diff, Dbits*2*(m.top+1));
+
+	a.p[m.top] = 0;
+	mpvecsub(a.p, m.top+1, b.p, m.top, diff.p);
+	mpvecadd(diff.p, m.top, m.p, m.top, tmp);
+	diff.p.set(tmp, m.top+1);
+
+	d[0] = ~diff.p[m.top];
+	for (i = 0, j = m.top+1; i < m.top; i++, j++)
+		diff.p[i] = (diff.p[i] & d[0]) | (diff.p[j] & ~d);
+
+	diff.top = m.top;
+	diff.sign = 1;
+	mpnorm(diff);
+}
+
+function mpmodmul(b1, b2, m, prod) {
+	var a = modarg(b1, m);
+	var b = modarg(b2, m);
+
+	mpmul(a, b, prod);
+	mpmod(prod, m, prod);
 }
 
 function between(x, min, max) {
-	return (((min-1-x) & (x-max-1))>>8);
+	return (((min-1-x) & (x-max-1))>>>8);
 }
 
 function dec16chr(c) {
@@ -580,26 +763,26 @@ function dec16chr(c) {
 
 function frompow2(a, s) {
 	var j, p, next;
-	var x;
+	var x = new Uint32Array(1);
 	var i;
 	var b = mpnew(0);
 
 	i = 1<<s;
 	for(p = 0; (dec16chr(a.charCodeAt(p)) & 255) < i; p++);
 	
-	b = mpbits(b, p*s);
+	mpbits(b, p*s);
 	b.top = 0;
 	next = p;
 
 	while(p > 0){
-		x = 0;
+		x[0] = 0;
 		for(i = 0; i < Dbits; i += s){
 			if (p <= 0)
 				break;
 			p--;
-			x |= dec16chr(a.charCodeAt(p))<<i;
+			x[0] |= dec16chr(a.charCodeAt(p))<<i;
 		}
-		b.p[b.top++] = x;
+		b.p[b.top++] = x[0];
 	}
 
 	return b;
@@ -628,8 +811,8 @@ function from10(str) {
 
 		pow = itomp(mppow10[i]);
 		r = itomp(x);
-		b = mpmul(b, pow, b);
-		b = mpadd(b, r, b);
+		mpmul(b, pow, b);
+		mpadd(b, r, b);
 		if (i < 9)
 			break;
 	}
@@ -688,7 +871,226 @@ function strtomp(str, base) {
 		return 0;
 
 	b.sign = sign;
-	return mpnorm(b);
+	mpnorm(b);
+	return b;
+}
+
+function betomp(p, n, b) {
+	var m, s, i;
+	var x = new Uint32Array(1);
+
+	if (!b)
+		b = mpnew(0);
+	mpbits(b, n*8);
+
+	m = DIGITS(n*8);
+	b.top = m--;
+	b.sign = 1;
+
+	s = ((n-1)*8)%Dbits;
+	x[0] = 0;
+	i = 0;
+	for(; n > 0; n--){
+		x[0] |= p[i++] << s;
+		s -= 8;
+		if (s < 0) {
+			b.p[m--] = x[0];
+			s = Dbits-8;
+			x[0] = 0;
+		}
+	}
+	mpnorm(b);
+}
+
+function mptober(b, p, idx, n) {
+	var i, j, m;
+	var x = new Uint32Array(1);
+
+	p.set(new Uint8Array(n), idx);
+
+	idx += n;
+	m = b.top*Dbytes;
+	if (m < n)
+		n = m;
+
+	i = 0;
+	while(n >= Dbytes) {
+		n -= Dbytes;
+		x[0] = b.p[i++];
+		for (j = 0; j < Dbytes; j++) {
+			p[--idx] = x[0] & 255;
+			x[0] >>= 8;
+		}
+	}
+	if(n > 0) {
+		x[0] = b.p[i];
+		for (j = 0; i < n; j++) {
+			p[--idx] = x[0] & 255;
+			x[0] >>= 8;
+		}
+	}
+}
+
+function mpexp(b, e, m, res) {
+	var t = [0,0];
+	var d = new Uint32Array(1);
+	var bit = new Uint32Array(1);
+	var i, j;
+
+	if (m && (m.flags & MPnorm) == 0)
+		fatal("m in mpexp");
+	if (e.flags & MPtimesafe)
+		fatal("e in mpexp");
+	res.flags |= b.flags & MPtimesafe;
+
+	i = mpcmp(e, mpzero);
+	if (i == 0) {
+		mpassign(mpone, res);
+		return;
+	}
+	if (i < 0)
+		fatal("mpexp: negative exponent");
+
+	t[0] = mpcopy(b);
+	t[1] = res;
+
+	if (res === b)
+		b = mpcopy(b);
+	if (res === e)
+		e = mpcopy(e);
+	if (res === m)
+		m = mpcopy(m);
+
+	i = e.top-1;
+	d[0] = e.p[i];
+	for (bit[0] = mpdighi[0]; (bit[0] & d[0]) == 0; bit[0] >>>= 1);
+	bit[0] >>>= 1;
+
+	j = 0;
+	for(;;) {
+		for (; bit[0] != 0; bit[0] >>>= 1){
+			if (m)
+				mpmodmul(t[j], t[j], m, t[j^1]);
+			else
+				mpmul(t[j], t[j], t[j^1]);
+			if (bit[0] & d[0]) {
+				if (m)
+					mpmodmul(t[j^1], b, m, t[j]);
+				else
+					mpmul(t[j^1], b, t[j]);
+			} else
+				j ^= 1;
+		}
+		if (--i < 0)
+			break;
+		bit[0] = mpdighi[0];
+		d[0] = e.p[i];
+	}
+	if (t[j] !== res)
+		mpassign(t[j], res);
+}
+
+function mpextendedgcd(a, b, v, x, y) {
+	var u, A, B, C, D;
+	var g;
+
+	if (v == null) {
+		v = mpnew(0);
+		mpextendedgcd(a, b, v, x, y);
+		return;
+	}
+	if (x && x.flags & MPtimesafe)
+		fatal("mpextendedgcd: x has MPtimesafe flag");
+	if (y && y.flags & MPtimesafe)
+		fatal("mpextendedgcd: y has MPtimesafe flag");
+	if (!((a.flags&b.flags) & MPnorm))
+		fatal("mpextendedgcd: MPnorm");
+	if ((a.flags|b.flags|v.flags) & MPtimesafe)
+		fatal("mpextendedgcd: MPtimesafe");
+
+	if (a.sign < 0 || b.sign < 0) {
+		mpassign(mpzero, v);
+		mpassign(mpzero, y);
+		mpassign(mpzero, x);
+		return;
+	}
+
+	if (a.top == 0) {
+		mpassign(b, v);
+		mpassign(mpone, y);
+		mpassign(mpzero, x);
+		return;
+	}
+	if (b.top == 0) {
+		mpassign(a, v);
+		mpassign(mpone, x);
+		mpassign(mpzero, y);
+		return;
+	}
+
+	g = 0;
+	a = mpcopy(a);
+	b = mpcopy(b);
+
+	while (iseven(a) && iseven(b)) {
+		mpright(a, 1, a);
+		mpright(b, 1, b);
+		g++;
+	}
+
+	u = mpcopy(a);
+	mpassign(b, v);
+	A = mpcopy(mpone);
+	B = mpcopy(mpzero);
+	C = mpcopy(mpzero);
+	D = mpcopy(mpone);
+
+	for(;;) {
+		while(iseven(u)) {
+			mpright(u, 1, u);
+			if (!iseven(A) || !iseven(B)) {
+				mpadd(A, b, A);
+				mpsub(B, a, B);
+			}
+			mpright(A, 1, A);
+			mpright(B, 1, B);
+		}
+		while(iseven(v)) {
+			mpright(v, 1, v);
+			if (!iseven(C) || !iseven(D)) {
+				mpadd(C, b, C);
+				mpsub(D, a, D);
+			}
+			mpright(C, 1, C);
+			mpright(D, 1, D);
+		}
+
+		if (mpcmp(u, v) >= 0) {
+			mpsub(u, v, u);
+			mpsub(A, C, A);
+			mpsub(B, D, B);
+		} else {
+			mpsub(v, u, v);
+			mpsub(C, A, C);
+			mpsub(D, B, D);
+		}
+
+		if (u.top == 0)
+			break;
+	}
+
+	mpassign(C, x);
+	mpassign(D, y);
+	mpleft(v, g, v);
+}
+
+function mpinvert(b, m, res) {
+	var v = mpnew(0);
+
+	mpextendedgcd(b, m, v, res, null);
+	if (mpcmp(v, mpone) != 0)
+		fatal("mpinvert");
+	mpmod(res, m, res);
 }
 
 function mpsignif(n) {
@@ -717,10 +1119,10 @@ function gmreduce(g, a, r) {
 		return -1;
 
 	if(a != r)
-		r = mpassign(a, r);
+		mpassign(a, r);
 
 	d = g.f.m.top;
-	r = mpbits(r, (d+1)*Dbits*2);
+	mpbits(r, (d+1)*Dbits*2);
 	for (i = d; i < (d+d*Dbytes); i++)
 		t[i] = r.p[i];
 
@@ -730,7 +1132,7 @@ function gmreduce(g, a, r) {
 
 	if (g.nsub > 0) {
 		d0[0] = g.nsub;
-		r.p = mpvecdigmuladd(g.f.m.p, d, d0, r.p, 0);
+		mpvecdigmuladd(g.f.m.p, d, d0, r.p, 0);
 	}
 
 	x = 0;
@@ -741,7 +1143,7 @@ function gmreduce(g, a, r) {
 			t[j] = t[g.indx[x++]];
 		t[0] = d0[0];
 
-		r.p = mpvecadd(r.p, d+1, t, d, r.p);
+		mpvecadd(r.p, d+1, t, d, r.p);
 	}
 
 	for(i=0; i<g.nsub; i++){
@@ -751,18 +1153,18 @@ function gmreduce(g, a, r) {
 			t[j] = t[g.indx[x++]];
 		t[0] = d0[0];
 
-		r.p = mpvecsub(r.p, d+1, t, d, r.p);
+		mpvecsub(r.p, d+1, t, d, r.p);
 	}
 
 	d0[0] = r.p[d];
 	mpvecdigmulsub(g.f.m.p, d, d0, r.p, 0);
 	r.p[d] = 0;
 
-	t = mpvecsub(r.p, d+1, g.f.m.p, d, t)
+	mpvecsub(r.p, d+1, g.f.m.p, d, t)
 	r.p.set(t.slice(0, d+1), d+1);
 	d0[0] = r.p[2*d+1];
 	for (j = 0; j < d; j++)
-		r.p[j] = (r.p[j] & d0[0]) | (r.p[j+d+q] & ~d0[0]);
+		r.p[j] = (r.p[j] & d0[0]) | (r.p[j+d+1] & ~d0[0]);
 
 	mpnorm(r);
 
@@ -778,20 +1180,19 @@ function gmfield(N) {
 	if(d <= 2 || d > MAXDIG/2 || (mpsignif(N) % Dbits) != 0)
 		return 0;
 	g = 0;
-	T = mpnew(0);
 	M = mpcopy(N);
 	C = new Int32Array(d+1);
 	X = new Int32Array(d*d);
 
+	j = new Int32Array(1);
 	for (i = 0; i <= d; i++) {
-		if ((M.p[i]>>8) != 0 && (~M.p[i]>>8) != 0)
+		if ((M.p[i]>>>8) != 0 && (~M.p[i]>>>8) != 0)
 			return 0;
-		j = new Int32Array(1);
 		j[0] = M.p[i];
-		C[d-i] = -j[0];
+		C[d - i] = -j[0];
 		T = itomp(j[0]);
-		T = mpleft(T, i*Dbits, T);
-		M = mpsub(M, T, M);
+		mpleft(T, i*Dbits, T);
+		mpsub(M, T, M);
 	}
 	for (j = 0; j < d; j++)
 		X[j] = C[d-j];
@@ -801,13 +1202,13 @@ function gmfield(N) {
 			X[d*i + j] = X[d*(i-1) + j-1] + X[d*(i-1) + d-1]*X[d-j];
 	}
 	g = mpnew(0);
+	g.flags |= MPfield;
 	g.m2 = mpnew(d*2+1);
-	g.m2 = mpmul(N, N, g.m2);
-	g = mpassign(N, g);
+	mpmul(N, N, g.m2);
+	mpassign(N, g);
 	g.f = mpnew(0);
 	g.f.reduce = gmreduce;
-	g.f.g = g;
-	g.f.m = mpnew(0);
+	g.f.m = g;
 	g.f.m.flags |= MPfield;
 	g.indx = new Int32Array(256);
 	g.nadd = 0;

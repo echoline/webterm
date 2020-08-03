@@ -34,6 +34,10 @@ function newTerminal() {
 		return false;
 	}
 	ta.oninput = function(event) {
+		if (event.inputType == 'deleteContentBackward') {
+			this.addchar(8);
+			return false;
+		}
 		var s = event.data;
 		for (var i = 0; i < s.length; i++)
 			this.addchar(s.charCodeAt(i));

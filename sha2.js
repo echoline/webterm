@@ -101,6 +101,9 @@ function sha2_64(p, len, digest, s, dlen) {
 	var e;
 	var b = 0;
 
+	if (!p)
+		p = new Uint8Array(64);
+
 	if (s.blen) {
 		i = 64 - s.blen;
 		if (len < i)
@@ -183,3 +186,4 @@ function sha2_256(p, len, digest, s) {
 	}
 	return sha2_64(p, len, digest, s, SHA2_256dlen);
 }
+
