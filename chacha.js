@@ -158,9 +158,9 @@ function chacha_encrypt2(src, dst, bytes, s) {
 		encryptblock(s, src, i, dst, i);
 	}
 	if (bytes > 0) {
-		tmp.set(src, 0);
+		tmp.set(src.slice(i), 0);
 		encryptblock(s, tmp, 0, tmp, 0);
-		dst.set(tmp, i);
+		dst.set(tmp.slice(0, bytes), i);
 	}
 }
 
