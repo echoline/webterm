@@ -14,11 +14,11 @@ function poly1305(m, len, key, klen, digest, s) {
 	var h = new Uint32Array(5);
 	var g = new Uint32Array(5);
 	var d = [0, 0, 0, 0, 0];
-	var f = mpnew(0);
+	var f; 
 	var hibit = new Uint32Array(1);
 	var mask = new Uint32Array(1);
 	var c = new Uint32Array(1);
-	var i, tmp;
+	var i;
 
 	if (!s) {
 		s = {};
@@ -86,29 +86,14 @@ function poly1305(m, len, key, klen, digest, s) {
 			h[4] += (U8TO32(m, 12) >>> 8) & hibit[0];
 
 			for (i = 0; i < 5; i++) {
-				d[i] = mpnew(0);
-				mpmul(itomp(h[0]), itomp(rs[i]), d[i]);
-				tmp = mpnew(0);
-				mpmul(itomp(h[1]), itomp(rs[(i+9)%10]), tmp);
-				mpadd(d[i], tmp, d[i]);
-				tmp = mpnew(0);
-				mpmul(itomp(h[2]), itomp(rs[(i+8)%10]), tmp);
-				mpadd(d[i], tmp, d[i]);
-				tmp = mpnew(0);
-				mpmul(itomp(h[3]), itomp(rs[(i+7)%10]), tmp);
-				mpadd(d[i], tmp, d[i]);
-				tmp = mpnew(0);
-				mpmul(itomp(h[4]), itomp(rs[(i+6)%10]), tmp);
-				mpadd(d[i], tmp, d[i]);
+				d[i] = BigInt(h[0]) * BigInt(rs[i]) + BigInt(h[1]) * BigInt(rs[(i+9)%10]) + BigInt(h[2]) * BigInt(rs[(i+8)%10]) + BigInt(h[3]) * BigInt(rs[(i+7)%10]) + BigInt(h[4]) * BigInt(rs[(i+6)%10]);
 			}
 
 			c[0] = 0;
 			for (i = 0; i < 5; i++) {
-				mpadd(d[i], itomp(c[0]), d[i]);
-				tmp = mpnew(0);
-				mpright(d[i], 26, tmp);
-				c[0] = mptoui(tmp);
-				h[i] = mptoui(d[i]) & 0x3ffffff;
+				d[i] += BigInt(c[0]);
+				c[0] = Number(d[i] >> 26n);
+				h[i] = Number(d[i]) & 0x3ffffff;
 			}
 			h[0] += c[0] * 5;
 			c[0] = h[0] >>> 26;
@@ -147,14 +132,15 @@ function poly1305(m, len, key, klen, digest, s) {
 	}
 	h[1] += c[0];
 
+	c[0] = 5;
 	for (i = 0; i < 4; i++) {
-		g[i] = h[i] + 5;
+		g[i] = h[i] + c[0];
 		c[0] = g[i] >>> 26;
 		g[i] &= 0x3ffffff;
 	}
 	g[4] = h[4] + c[0] - (1 << 26);
 
-	mask[0] = (g[4] >> 31) - 1;
+	mask[0] = (g[4] >>> 31) - 1;
 	for (i = 0; i < 5; i++)
 		g[i] &= mask[0];
 	mask[0] = ~mask[0];
@@ -164,14 +150,10 @@ function poly1305(m, len, key, klen, digest, s) {
 	for (i = 0; i < 4; i++)
 		h[i] = (h[i] >>> (i*6)) | (h[i+1] << (26 - i*6));
 
-	f = mpnew(0);
+	f = 0n;
 	for (i = 0; i < 4; i++) {
-		tmp = mpnew(0);
-		mpright(f, 32, tmp);
-		f = itomp(h[i]);
-		mpadd(f, itomp(s.state[i+10]), f);
-		mpadd(f, tmp, f);
-		h[i] = mptoui(f);
+		f = BigInt(h[i]) + BigInt(s.state[i+10]) + (f >> 32n);
+		h[i] = Number(f);
 	}
 
 	for (i = 0; i < 4; i++)

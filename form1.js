@@ -24,7 +24,7 @@ function form1check(ap, n) {
 
 	for(i = form1sig.length-1; i >= 0; i--)
 		if (arr2str(ap.slice(0, 8)) == form1sig[i][1])
-			return form1sig[i].num;
+			return form1sig[i][0];
 
 	return -1;
 }
