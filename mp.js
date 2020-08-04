@@ -835,7 +835,7 @@ function mprand(bits, gen, b) {
 
 	mask[0] = (1 << (bits%Dbits))-1;
 	if (mask[0] != 0)
-		b.p[b.top-1] &= mask;
+		b.p[b.top-1] &= mask[0];
 
 	return mpnorm(b);
 }

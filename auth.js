@@ -9,8 +9,17 @@ const Ticket = ["i1:num","b8:chal","b28:cuid","b28:suid","b32:key"];
 
 var username = "eli";
 var password;
-var authkey = {aes:new Uint8Array(AESKEYLEN)};
+var authkey = {aes:zerobytes(AESKEYLEN)};
 var authpriv = {isclient:1};
+var state;
+var cpubuf;
+var oncpumsg;
+var authdom;
+var conn;
+var cchal, schal;
+var authstate;
+var authbuf;
+var onauthmsg;
 
 function newWebSocket(url) {
 	if(window.WebSocket != undefined)
@@ -21,12 +30,6 @@ function newWebSocket(url) {
 }
 
 function startauth() {
-	var state;
-	var cpubuf;
-	var oncpumsg;
-	var authdom;
-	var conn;
-
 //	username = prompt("username", "");
 //	password = prompt("password", "");
 
@@ -43,14 +46,9 @@ function startauth() {
 		document.getElementById('terminal').firstChild.writeterminal('conn closed: ' + evt.code + '\n');
 	}
 	conn.onopen = function(evt) {
-		var cchal, schal, YBs, YBc, YAs, YAc, Ks, Kc;
-		var y;
-
 		state = 0;
 		oncpumsg = function() {
-			var i, s, arr, arr2;
-
-			document.getElementById('terminal').firstChild.writeterminal('state: ' + state + '\n');
+			var i, s, arr, arr2, y;
 
 			switch(state){
 			case 0:
@@ -72,6 +70,7 @@ function startauth() {
 				cpubuf = "";
 				break;
 			}
+
 			switch(state){
 			case 0:
 				state++;
@@ -101,57 +100,70 @@ function startauth() {
 				s.uid = username;
 				schal = s.chal;
 				authid = s.authid;
-				YAs = s.YAs;
-				y = new Uint8Array(PAKYLEN);
-				authpak_new(authpriv, authkey, y, 1);
-				YAc = s.YAc = arr2str(y);
 				document.getElementById('terminal').firstChild.writeterminal('dom: ' + s.authdom + '\n');
+
+				y = new Uint8Array(PAKYLEN);
+				authpak_new(authpriv, authkey, y);
+				s.YAc = arr2str(y);
 				s = pack(s, AuthPAKC2A);
 
+				authbuf = "";
 				authconn = newWebSocket("wss://echoline.org:8443/auth");
 				authconn.onmessage = function(evt) {
-					s += atob(evt.data);
-					if(s.charCodeAt(0) != 4)
-						fatal("AS protocol botch " + buf.charCodeAt(0));
-					if(authstate == 0 && s.length == 113) {
+					var i, a;
 
+					authbuf += atob(evt.data);
+
+					switch(authstate) {
+					case 0:
+						i = 113;
+						if (authbuf.length < i)
+							return;
+						a = authbuf.substring(0, i);
+						authbuf = authbuf.substring(i);
+						break;
+					case 1:
+						i = 249;
+						if (authbuf.length < i)
+							return;
+						a = authbuf.substring(0, i);
+						authbuf = authbuf.substring(i);
+						break;
+					default:
+						return;
+					}
+
+					if(a.charCodeAt(0) != 4)
+						fatal("AS protocol botch");
+
+					switch(authstate) {
+					case 0:
 						authstate++;
-						s = unpack(s, AuthPAKA2C);
-						YBs = s.YBs;
-						YBc = s.YBc;
-						document.getElementById('terminal').firstChild.writeterminal('authpak: ' + s.type + '\n');
+						a = unpack(a, AuthPAKA2C);
 
-						if (authpak_finish(authpriv, authkey, str2arr(YBc)))
+						if (authpak_finish(authpriv, authkey, str2arr(a.YBc)))
 							fatal("authpak_finish failed");
 
-						s = {};
-						s.type = 1;
-						s.authid = authid;
-						s.authdom = authdom;
-						s.chal = schal;
-						s.hostid = s.uid = username;
-						s = pack(s, Ticketreq);
-						authconn.send(btoa(s));
-
-						s = "";
-					} else if(authstate == 1 && s.length == 249) {
+						a = {};
+						a.type = 1;
+						a.authid = authid;
+						a.authdom = authdom;
+						a.chal = schal;
+						a.hostid = a.uid = username;
+						a = pack(a, Ticketreq);
+						authconn.send(btoa(a));
+						break;
+					case 1:
 						authstate++;
-						s = unpack(s, AuthOK);
-						Ks = s.Ks;
-						Kc = s.Kc;
-						document.getElementById('terminal').firstChild.writeterminal('auth: ' + s.type + '\n');
-						authconn.close();
+						a = unpack(a, AuthOK);
 
-			//			s.YBs = YBs;
-			//			s.Ks = Ks;
-			//			s.Kn = "form1 Ac" + randomstring(60);
-			//			s = pack(s, AuthenticatorC);
-			//			conn.send(btoa(s));
+						authconn.close();
+						break;
 					}
 				}
 				authconn.onopen = function() {
 					authconn.send(btoa(s));
-					s = "";
+					authbuf = "";
 				}
 				authconn.onclose = function(evt) {
 					document.getElementById('terminal').firstChild.writeterminal('authconn closed: ' + evt.code + '\n');

@@ -5,22 +5,22 @@ const PAKHASHLEN = 2*PAKPLEN;
 const PAKXLEN = PAKSLEN;
 const PAKYLEN = PAKSLEN;
 
-var Pcs = 0;
+var pointcurve = 0;
 
 function authpak_curve() {
-	if (Pcs == 0) {
-		Pcs = {};
+	if (pointcurve == 0) {
+		pointcurve = {};
 
-		Pcs.P = mpnew(0);
-		Pcs.A = mpnew(0);
-		Pcs.D = mpnew(0);
-		Pcs.X = mpnew(0);
-		Pcs.Y = mpnew(0);
-		ed448_curve(Pcs.P, Pcs.A, Pcs.D, Pcs.X, Pcs.Y);
-		Pcs.P = mpfield(Pcs.P);
+		pointcurve.P = mpnew(0);
+		pointcurve.A = mpnew(0);
+		pointcurve.D = mpnew(0);
+		pointcurve.X = mpnew(0);
+		pointcurve.Y = mpnew(0);
+		ed448_curve(pointcurve.P, pointcurve.A, pointcurve.D, pointcurve.X, pointcurve.Y);
+		pointcurve.P = mpfield(pointcurve.P);
 	}
 
-	return Pcs;
+	return pointcurve;
 }
 
 function authpak_hash(k, u) {
@@ -65,13 +65,12 @@ function authpak_hash(k, u) {
 	mptober(PT, k.pakhash, bp, PAKSLEN);
 }
 
-function authpak_new(p, k, y, isclient) {
+function authpak_new(p, k, y) {
 	var PX, PY, PZ, PT, X, Y;
 	var c;
 	var bp;
 	var buf = new Uint8Array(PAKSLEN*2);
 
-	p.isclient = isclient != 0;
 	p.x = new Uint8Array(PAKXLEN);
 	p.y = new Uint8Array(PAKYLEN);
 
@@ -150,8 +149,8 @@ function authpak_finish(p, k, y) {
 	if (mpcmp(ok, mpzero) != 0) {
 		mptober(Z, z, 0, PAKSLEN);
 
-		s = sha2_256(p.isclient ? p.y : y, PAKYLEN, null, null);
-		sha2_256(p.isclient ? y : p.y, PAKYLEN, salt, s);
+		s = sha2_256(p.y, PAKYLEN, null, null);
+		sha2_256(y, PAKYLEN, salt, s);
 
 		k.pakkey = new Uint8Array(PAKKEYLEN);
 		hkdf_x(salt, SHA2_256dlen, info, info.length,
