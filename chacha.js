@@ -12,9 +12,9 @@ function QUARTERROUND(x, ia, ib, ic, id) {
 
 	t[0] = x[ia]; t[1] = x[ib]; t[2] = x[ic]; t[3] = x[id];
 	t[0] += t[1]; t[4] = t[3]^t[0]; t[3] = ROTATE(t[4], 16);
-	t[2] += t[3]; t[4] = t[1]^t[2]; t[2] = ROTATE(t[4], 12);
+	t[2] += t[3]; t[4] = t[1]^t[2]; t[1] = ROTATE(t[4], 12);
 	t[0] += t[1]; t[4] = t[3]^t[0]; t[3] = ROTATE(t[4], 8);
-	t[2] += t[3]; t[4] = t[1]^t[2]; t[2] = ROTATE(t[4], 7);
+	t[2] += t[3]; t[4] = t[1]^t[2]; t[1] = ROTATE(t[4], 7);
 	x[ia] = t[0]; x[ib] = t[1]; x[ic] = t[2]; x[id] = t[3];
 }
 
@@ -36,7 +36,7 @@ function ENCRYPT(s, si, x, y, d, di) {
 	var v = new Uint32Array(1);
 
 	v[0] = s[si]|(s[si+1]<<8)|(s[si+2]<<16)|(s[si+3]<<24);
-	v[0] ^= x+y;
+	v[0] ^= (x+y);
 	d[di+0] = (v[0] >>>  0) & 0xFF;
 	d[di+1] = (v[0] >>>  8) & 0xFF;
 	d[di+2] = (v[0] >>> 16) & 0xFF;
@@ -136,8 +136,7 @@ function encryptblock(s, src, srcidx, dst, dstidx) {
 	var x = new Uint32Array(16);
 	var i;
 
-	for (i = 0; i < 16; i++)
-		x[i] = s.input[i];
+	x.set(s.input, 0);
 	chachablock(x, s.rounds);
 
 	for (i = 0; i < 16; i++) {
