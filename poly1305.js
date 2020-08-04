@@ -83,17 +83,21 @@ function poly1305(m, len, key, klen, digest, s) {
 		while(len >= 16) {
 			for (i = 0; i < 4; i++)
 				h[i] += (U8TO32(m, i*3) >>> i*2) & 0x3ffffff;
-			h[4] += (U8TO32(m, 12) >>> 8) & hibit[0];
+			h[4] += (U8TO32(m, 12) >>> 8) | hibit[0];
 
 			for (i = 0; i < 5; i++) {
-				d[i] = BigInt(h[0]) * BigInt(rs[i]) + BigInt(h[1]) * BigInt(rs[(i+9)%10]) + BigInt(h[2]) * BigInt(rs[(i+8)%10]) + BigInt(h[3]) * BigInt(rs[(i+7)%10]) + BigInt(h[4]) * BigInt(rs[(i+6)%10]);
+				d[i] = (BigInt(h[0]) * BigInt(rs[i])) + 
+					(BigInt(h[1]) * BigInt(rs[(i+9)%10])) +
+					(BigInt(h[2]) * BigInt(rs[(i+8)%10])) +
+					(BigInt(h[3]) * BigInt(rs[(i+7)%10])) +
+					(BigInt(h[4]) * BigInt(rs[(i+6)%10]));
 			}
 
 			c[0] = 0;
 			for (i = 0; i < 5; i++) {
 				d[i] += BigInt(c[0]);
-				c[0] = Number(d[i] >> 26n);
-				h[i] = Number(d[i]) & 0x3ffffff;
+				c[0] = Number(BigInt.asUintN(32, d[i] >> 26n)) >>> 0;
+				h[i] = (Number(BigInt.asUintN(32, d[i])) >>> 0) & 0x3ffffff;
 			}
 			h[0] += c[0] * 5;
 			c[0] = h[0] >>> 26;
@@ -153,7 +157,7 @@ function poly1305(m, len, key, klen, digest, s) {
 	f = 0n;
 	for (i = 0; i < 4; i++) {
 		f = BigInt(h[i]) + BigInt(s.state[i+10]) + (f >> 32n);
-		h[i] = Number(f);
+		h[i] = Number(BigInt.asUintN(32, f)) >>> 0;
 	}
 
 	for (i = 0; i < 4; i++)
