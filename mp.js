@@ -88,6 +88,14 @@ function itomp(i) {
 	return mpnorm(b);
 }
 
+function mptoui(b) {
+	if (b.sign < 0)
+		return 0;
+	if (b.top > 1)
+		return 0xFFFFFFFF;
+	return b.p[0];
+}
+
 function mpbits(b, m) {
 	var n = DIGITS(m);
 	var i;

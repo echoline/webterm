@@ -10,7 +10,7 @@ const Ticket = ["i1:num","b8:chal","b28:cuid","b28:suid","b32:key"];
 var username = "eli";
 var password;
 var authkey = {aes:zerobytes(AESKEYLEN)};
-var authpriv = {isclient:1};
+var authpriv = {};
 var state;
 var cpubuf;
 var oncpumsg;

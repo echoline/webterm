@@ -19,13 +19,12 @@ const form1sig = [
 var counter = new Uint32Array(1);
 
 function form1check(ap, n) {
-{
 	if (n < 8)
 		return -1;
 
 	for(i = form1sig.length-1; i >= 0; i--)
 		if (arr2str(ap.slice(0, 8)) == form1sig[i][1])
-			return form1sign[i].num;
+			return form1sig[i].num;
 
 	return -1;
 }
@@ -45,8 +44,8 @@ function form1M2B(ap, n, key) {
 		return -1;
 
 	p = ap.slice(12);
-	s = setupChachastate(key, 32, ap, 12, 20);
-	if (ccpoly_decrypt(p, n, null, 0, n, s)
+	s = setupChachastate(null, key, 32, ap, 12, 20);
+	if (ccpoly_decrypt(p, n, null, 0, p.slice(n), s))
 		return -1;
 
 	ap[0] = num;

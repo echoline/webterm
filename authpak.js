@@ -87,7 +87,7 @@ function authpak_new(p, k, y) {
 	PZ.flags |= MPtimesafe;
 	PT.flags |= MPtimesafe;
 
-	bp = PAKPLEN * (p.isclient == 0);
+	bp = 0;
 	betomp(k.pakhash.slice(bp, bp + PAKSLEN), PAKSLEN, PX); bp += PAKSLEN;
 	betomp(k.pakhash.slice(bp, bp + PAKSLEN), PAKSLEN, PY); bp += PAKSLEN;
 	betomp(k.pakhash.slice(bp, bp + PAKSLEN), PAKSLEN, PZ); bp += PAKSLEN;
@@ -96,7 +96,7 @@ function authpak_new(p, k, y) {
 	c = authpak_curve();
 
 	X.flags |= MPtimesafe;
-	mpnrand(c.P, randombytes, X)
+	mpnrand(c.P, zerobytes, X);
 
 	spake2ee_1(c.P,c.A,c.D, X, c.X,c.Y, PX,PY,PZ,PT, Y);
 
@@ -131,7 +131,7 @@ function authpak_finish(p, k, y) {
 	PZ.flags |= MPtimesafe;
 	PT.flags |= MPtimesafe;
 
-	bp = PAKPLEN * (p.isclient != 0);
+	bp = PAKPLEN;
 	betomp(k.pakhash.slice(bp, bp + PAKSLEN), PAKSLEN, PX); bp += PAKSLEN;
 	betomp(k.pakhash.slice(bp, bp + PAKSLEN), PAKSLEN, PY); bp += PAKSLEN;
 	betomp(k.pakhash.slice(bp, bp + PAKSLEN), PAKSLEN, PZ); bp += PAKSLEN;
