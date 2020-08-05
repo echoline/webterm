@@ -46,3 +46,7 @@ function hmac_sha2_256(p, len, key, klen, digest, s)
 	return hmac_x(p, len, key, klen, digest, s, sha2_256, SHA2_256dlen);
 }
 
+function hmac_sha1(p, len, key, klen, digest, s) {
+	return hmac_x(p, len, key, klen, digest, s, sha1, SHA1dlen);
+}
+

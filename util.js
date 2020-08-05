@@ -89,3 +89,29 @@ function tsmemcmp(a1, a2, n) {
 	}
 	return r;
 }
+
+function encode32(output, offset, input, len) {
+	var x = new Uint32Array(1);
+	var e, i, end;
+
+	for (e = offset, i = 0, end = offset + len; e < end; i++) {
+		x[0] = input[i];
+		output[e++] = (x[0] >> 24) & 0xFF;
+		output[e++] = (x[0] >> 16) & 0xFF;
+		output[e++] = (x[0] >> 8) & 0xFF;
+		output[e++] = x[0] & 0xFF;
+	}
+}
+
+function newDigestState() {
+	var s = {};
+
+	s.len = 0;
+	s.state = new Uint32Array(16);
+	s.buf = new Uint8Array(256);
+	s.blen = 0;
+	s.seeded = 0;
+
+	return s;
+}
+

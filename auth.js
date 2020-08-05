@@ -7,9 +7,9 @@ const AuthenticatorC = ["b56:YBs","b124:Ks","b68:Kn"];
 const AuthenticatorS = ["b68:Kn"];
 const Ticket = ["i1:num","b8:chal","b28:cuid","b28:suid","b32:key"];
 
-var username = "eli";
+var username;
 var password;
-var authkey = {aes:zerobytes(AESKEYLEN)};
+var authkey = {};
 var authpriv = {};
 var state;
 var cpubuf;
@@ -30,9 +30,24 @@ function newWebSocket(url) {
 	fatal("no websockets");
 }
 
+function passtokey(key, pw) {
+	var salt = str2arr("Plan 9 key derivation");
+
+	key.aes = new Uint8Array(AESKEYLEN);
+	pbkdf2_x(pw, pw.length, salt, salt.length, 9001, key.aes, AESKEYLEN, hmac_sha1, SHA1dlen);
+}
+
 function startauth() {
-//	username = prompt("username", "");
-//	password = prompt("password", "");
+	username = prompt("username", "");
+	password = prompt("password", "");
+
+	if (!username)
+		username = "";
+	if (!password)
+		password = "";
+
+	passtokey(authkey, str2arr(password));
+	password = null;
 
 	cpubuf = "";
 	conn = newWebSocket("wss://echoline.org:8443/rcpu");
@@ -161,7 +176,21 @@ function startauth() {
 						a = unpack(a, AuthOK);
 						Kc = a.Kc;
 						Ks = a.Ks;
-
+						var aKc = str2arr(Kc);
+						var aKs = str2arr(Ks);
+						var authok = true;
+						if (form1M2B(aKc, aKc.length, authkey.pakkey) < 0)
+							authok = false;
+						if (authok) {
+							a = unpack(arr2str(aKc), Ticket);
+							if (a.num != AuthTc)
+								authok = false;
+						}
+						if (!authok) {
+							alert("password incorrect")
+							conn.close();
+							startauth();
+						}
 						break;
 					}
 				}

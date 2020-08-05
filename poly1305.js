@@ -21,12 +21,7 @@ function poly1305(m, len, key, klen, digest, s) {
 	var i, tmp;
 
 	if (!s) {
-		s = {};
-		s.len = 0;
-		s.state = new Uint32Array(16);
-		s.buf = new Uint8Array(256);
-		s.blen = 0;
-		s.seeded = 0;
+		s = newDigestState();
 	}
 
 	if (s.seeded == 0) {
