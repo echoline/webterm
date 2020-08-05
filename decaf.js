@@ -1,11 +1,13 @@
 function decaf_neg(p, n, r) {
 	var m = mpnew(0);
 	var tmp1 = mpnew(0);
+	var s;
 
 	mpmodsub(mpzero, r, p, m);
 	mpsub(p, mpone, tmp1);
 	mpright(tmp1, 1, tmp1);
-	mpsel(-mpcmp(n, tmp1) >>> 31, m, r, r);
+	s = mpcmp(n, tmp1);
+	mpsel(s <= 0? 0: -1, m, r, r);
 }
 
 function decaf_encode(p, a, d, X, Y, Z, T, s) {

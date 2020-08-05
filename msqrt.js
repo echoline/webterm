@@ -106,12 +106,10 @@ function msqrt(a, p, r) {
 
 function misqrt(a, p, r) {
 	var e = mpnew(0);
-	var tmp1 = mpnew(0);
-	var tmp2 = mpnew(0);
+	var tmp1 = itomp(4);
+	var tmp2 = itomp(3);
 
-	tmp1 = itomp(4);
 	mpmod(p, tmp1, tmp1);
-	tmp2 = itomp(3);
 	if (mpcmp(tmp1, tmp2) == 0) {
 		e = itomp(3);
 		mpsub(p, e, e);

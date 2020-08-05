@@ -89,7 +89,7 @@ function startauth() {
 				}
 				if(!authdom)
 					fatal("dp9ik not available");
-				authpak_hash(authkey, new TextEncoder("utf-8").encode(username));
+				authpak_hash(authkey, str2arr(username));
 				break;
 			case 1:
 				state++;
@@ -159,6 +159,9 @@ function startauth() {
 						a = unpack(a, AuthOK);
 						Kc = a.Kc;
 						Ks = a.Ks;
+						var aKc = str2arr(Kc);
+						if (!form1M2B(aKc, aKc.length, authkey.pakkey))
+							alert(arr2str(aKc));
 
 						authconn.close();
 						break;

@@ -1,7 +1,7 @@
 const ChachaBsize = 64;
 
-const chachasigma = new TextEncoder("utf-8").encode("expand 32-byte k");
-const chachatau = new TextEncoder("utf-8").encode("expand 16-byte k");
+const chachasigma = str2arr("expand 32-byte k");
+const chachatau = str2arr("expand 16-byte k");
 
 function ROTATE(v, c) {
 	return ((v << c) | (v >>> (32 - c)));

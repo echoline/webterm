@@ -24,7 +24,7 @@ function authpak_curve() {
 }
 
 function authpak_hash(k, u) {
-	var info = new TextEncoder("utf-8").encode("Plan 9 AuthPAK hash");
+	var info = str2arr("Plan 9 AuthPAK hash");
 	var bp;
 	var salt = new Uint8Array(SHA2_256dlen);
 	var h = new Uint8Array(2 * PAKSLEN);
@@ -63,6 +63,13 @@ function authpak_hash(k, u) {
 	mptober(PY, k.pakhash, bp, PAKSLEN); bp += PAKSLEN;
 	mptober(PZ, k.pakhash, bp, PAKSLEN); bp += PAKSLEN;
 	mptober(PT, k.pakhash, bp, PAKSLEN);
+}
+
+function gentest(n) {
+	buf = zerobytes(n);
+	s = setupChachastate(null, buf, 32, buf, 12, 0);
+	chacha_encrypt(buf, n, s);
+	return buf;
 }
 
 function authpak_new(p, k, y) {
@@ -107,7 +114,7 @@ function authpak_new(p, k, y) {
 }
 
 function authpak_finish(p, k, y) {
-	var info = new TextEncoder("utf-8").encode("Plan 9 AuthPAK key");
+	var info = new str2arr("Plan 9 AuthPAK key");
 	var bp;
 	var z = new Uint8Array(PAKSLEN);
 	var salt = new Uint8Array(SHA2_256dlen);

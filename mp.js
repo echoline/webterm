@@ -222,31 +222,31 @@ function mpleft(b, shift, res) {
 
 function mpvectscmp(a, alen, b, blen) {
 	var x = new Uint32Array(4);
-	var m, p;
+	var m = new Int32Array(2);
 
 	if (alen > blen) {
 		x[3] = 0;
 		while (alen > blen)
 			x[3] |= a[--alen];
-		m = p = (-x[3]^x[3]|x[3])>>Dbits-1;
+		m[0] = m[1] = (-x[3]^x[3]|x[3])>>Dbits-1;
 	} else if (blen > alen) {
 		x[3] = 0;
 		while (blen > alen)
 			x[3] |= b[--blen];
-		m = (-x[3]^x[3]|x[3])>>Dbits>>1;
-		p = m^1;
+		m[0] = (-x[3]^x[3]|x[3])>>Dbits>>1;
+		m[1] = m[0]^1;
 	} else
-		m = p = 0;
+		m[0] = m[1] = 0;
 	while (alen-- > 0) {
 		x[0] = a[alen];
 		x[1] = b[alen];
 		x[2] = x[0] - x[1];
 		x[0] = ~x[0];
-		x[3] = ((-x[2]^x[2]|x[2])>>Dbits-1) & ~m;
-		p = ((~(x[0]&x[1]|x[0]&x[2]|x[1]&x[2])>>Dbits-1) & x[3]) | (p & ~x[3]);
-		m |= x[3];
+		x[3] = ((-x[2]^x[2]|x[2])>>>Dbits-1) & ~m[0];
+		m[1] = ((~(x[0]&x[1]|x[0]&x[2]|x[1]&x[2])>>>Dbits-1) & x[3]) | (m[1] & ~x[3]);
+		m[0] |= x[3];
 	}
-	return (p-m) | m;
+	return (m[1]-m[0]) | m[0];
 }
 
 function mpveccmp(a, alen, b, blen) {
@@ -799,7 +799,7 @@ function mpmodsub(b1, b2, m, diff) {
 
 	d[0] = ~diff.p[m.top];
 	for (i = 0, j = m.top+1; i < m.top; i++, j++)
-		diff.p[i] = (diff.p[i] & d[0]) | (diff.p[j] & ~d);
+		diff.p[i] = (diff.p[i] & d[0]) | (diff.p[j] & ~d[0]);
 
 	diff.top = m.top;
 	diff.sign = 1;
@@ -815,7 +815,7 @@ function mpmodmul(b1, b2, m, prod) {
 }
 
 function mpsel(s, b1, b2, res) {
-	var d = new Uint32Array(1);
+	var d;
 	var n, m, i;
 
 	res.flags |= (b1.flags | b2.flags) & MPtimesafe;
@@ -833,11 +833,11 @@ function mpsel(s, b1, b2, res) {
 	s = (-s^s|s)>>>31;
 	res.sign = (b1.sign & s) | (b2.sign & ~s);
 
-	d[0] = -(s & 1);
+	d = new Uint32Array([-(s & 1)]);
 
 	i = 0;
 	while (i < n && i < m) {
-		res.p[i] = (b1.p[i] & d[0]) | (b2.p[i] & ~d);
+		res.p[i] = (b1.p[i] & d[0]) | (b2.p[i] & ~d[0]);
 		i++;
 	}
 	while (i < n) {
@@ -1136,14 +1136,14 @@ function mpextendedgcd(a, b, v, x, y) {
 	var u, A, B, C, D;
 	var g;
 
-	if (v == null) {
+	if (!v) {
 		v = mpnew(0);
 		mpextendedgcd(a, b, v, x, y);
 		return;
 	}
-	if (x && x.flags & MPtimesafe)
+	if (x && (x.flags & MPtimesafe))
 		fatal("mpextendedgcd: x has MPtimesafe flag");
-	if (y && y.flags & MPtimesafe)
+	if (y && (y.flags & MPtimesafe))
 		fatal("mpextendedgcd: y has MPtimesafe flag");
 	if (!((a.flags&b.flags) & MPnorm))
 		fatal("mpextendedgcd: MPnorm");
