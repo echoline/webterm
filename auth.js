@@ -20,6 +20,7 @@ var cchal, schal;
 var authstate;
 var authbuf;
 var onauthmsg;
+var Ks, Kc;
 
 function newWebSocket(url) {
 	if(window.WebSocket != undefined)
@@ -156,6 +157,8 @@ function startauth() {
 					case 1:
 						authstate++;
 						a = unpack(a, AuthOK);
+						Kc = a.Kc;
+						Ks = a.Ks;
 
 						authconn.close();
 						break;

@@ -556,11 +556,36 @@ function mpvecmul(a, alen, b, blen, p) {
 		b = t;
 	}
 
-	for(i = 0; i < blen; i++){
+	if (alen >= 32 && blen > 1) {
+		fatal("mpvecmul: karatsubamin unimplemented");
+	} else {
+		for(i = 0; i < blen; i++){
+			t = new Uint32Array(1);
+			t[0] = b[i];
+			if (t[0] != 0)
+				mpvecdigmuladd(a, alen, t, p, i);
+		}
+	}
+}
+
+function mpvectsmul(a, alen, b, blen, p) {
+	var i;
+	var t;
+
+	if (alen < blen) {
+		i = alen;
+		alen = blen;
+		blen = i;
+		t = a;
+		a = b;
+		b = t;
+	}
+	if (blen == 0)
+		return;
+	for (i = 0; i < blen; i++) {
 		t = new Uint32Array(1);
 		t[0] = b[i];
-		if (t[0] != 0)
-			mpvecdigmuladd(a, alen, t, p, i);
+		mpvecdigmuladd(a, alen, t, p, i);
 	}
 }
 
@@ -575,7 +600,10 @@ function mpmul(b1, b2, prod) {
 
 	prod.top = 0;
 	mpbits(prod, (b1.top+b2.top+1)*Dbits);
-	mpvecmul(b1.p, b1.top, b2.p, b2.top, prod.p);
+	if (prod.flags & MPtimesafe)
+		mpvectsmul(b1.p, b1.top, b2.p, b2.top, prod.p);
+	else
+		mpvecmul(b1.p, b1.top, b2.p, b2.top, prod.p);
 	prod.top = b1.top + b2.top + 1;
 	prod.sign = b1.sign * b2.sign;
 	mpnorm(prod);
@@ -836,9 +864,7 @@ function mprand(bits, gen, b) {
 	b.sign = 1;
 	b.top = DIGITS(bits);
 	data = gen(b.top * Dbytes);
-	buf = new Uint32Array(b.top);
-	for (i = 0; i < buf.length; i++)
-		buf[i] = data[i*4] | (data[i*4+1] << 8) | (data[i*4+2] << 16) | (data[i*4+3] << 24);
+	buf = new Uint32Array(data.buffer);
 	b.p.set(buf, 0);
 
 	mask[0] = (1 << (bits%Dbits))-1;

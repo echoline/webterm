@@ -73,6 +73,7 @@ function edwards_scale(p, a, d, s, X1, Y1, Z1, T1, X3, Y3, Z3, T3) {
 			edwards_add(p, a, d, X2, Y2, Z2, T2, X2, Y2, Z2, T2, X2, Y2, Z2, T2);
 			edwards_add(p, a, d, X2, Y2, Z2, T2, X3, Y3, Z3, T3, X4, Y4, Z4, T4);
 			tmp2 = mpnew(0);
+			mpmod(k, mptwo, tmp2);
 			edwards_sel(tmp2, X4, Y4, Z4, T4, X3, Y3, Z3, T3, X3, Y3, Z3, T3);
 			mpright(k, 1, k);
 			mpright(j, 1, j);

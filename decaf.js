@@ -73,7 +73,7 @@ function decaf_decode(p, a, d, s, ok, X, Y, Z, T) {
 		mpmodmul(a, ss, p, Z);
 		mpmodadd(mpone, Z, p, Z);
 		mpmodmul(Z, Z, p, u);
-		tmp = itomp(4);
+		tmp4 = itomp(4);
 		mpmodmul(tmp4, d, p, tmp3);
 		mpmodmul(tmp3, ss, p, tmp2);
 		mpmodsub(u, tmp2, p, u);

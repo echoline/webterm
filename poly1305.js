@@ -18,7 +18,7 @@ function poly1305(m, len, key, klen, digest, s) {
 	var hibit = new Uint32Array(1);
 	var mask = new Uint32Array(1);
 	var c = new Uint32Array(1);
-	var i;
+	var i, tmp;
 
 	if (!s) {
 		s = {};
@@ -86,18 +86,29 @@ function poly1305(m, len, key, klen, digest, s) {
 			h[4] += (U8TO32(m, 12) >>> 8) | hibit[0];
 
 			for (i = 0; i < 5; i++) {
-				d[i] = (BigInt(h[0]) * BigInt(rs[i])) + 
-					(BigInt(h[1]) * BigInt(rs[(i+9)%10])) +
-					(BigInt(h[2]) * BigInt(rs[(i+8)%10])) +
-					(BigInt(h[3]) * BigInt(rs[(i+7)%10])) +
-					(BigInt(h[4]) * BigInt(rs[(i+6)%10]));
+				d[i] = mpnew(0);
+				mpmul(itomp(h[0]), itomp(rs[i]), d[i]);
+				tmp = mpnew(0);
+				mpmul(itomp(h[1]), itomp(rs[(i+9)%10]), tmp);
+				mpadd(d[i], tmp, d[i]);
+				tmp = mpnew(0);
+				mpmul(itomp(h[2]), itomp(rs[(i+8)%10]), tmp);
+				mpadd(d[i], tmp, d[i]);
+				tmp = mpnew(0);
+				mpmul(itomp(h[3]), itomp(rs[(i+7)%10]), tmp);
+				mpadd(d[i], tmp, d[i]);
+				tmp = mpnew(0);
+				mpmul(itomp(h[4]), itomp(rs[(i+6)%10]), tmp);
+				mpadd(d[i], tmp, d[i]);
 			}
 
 			c[0] = 0;
 			for (i = 0; i < 5; i++) {
-				d[i] += BigInt(c[0]);
-				c[0] = Number(BigInt.asUintN(32, d[i] >> 26n)) >>> 0;
-				h[i] = (Number(BigInt.asUintN(32, d[i])) >>> 0) & 0x3ffffff;
+				mpadd(d[i], itomp(c[0]), d[i]);
+				tmp = mpnew(0);
+				mpright(d[i], 26, tmp);
+				c[0] = tmp.p[0];
+				h[i] = d[i].p[0] & 0x3ffffff;
 			}
 			h[0] += c[0] * 5;
 			c[0] = h[0] >>> 26;
@@ -156,8 +167,12 @@ function poly1305(m, len, key, klen, digest, s) {
 
 	f = 0n;
 	for (i = 0; i < 4; i++) {
-		f = BigInt(h[i]) + BigInt(s.state[i+10]) + (f >> 32n);
-		h[i] = Number(BigInt.asUintN(32, f)) >>> 0;
+		tmp = mpnew(0);
+		mpright(f, 32, tmp);
+		f = itomp(h[i]);
+		mpadd(f, itomp(s.state[i+10]), f);
+		mpadd(f, tmp, f);
+		h[i] = f.p[0];
 	}
 
 	for (i = 0; i < 4; i++)

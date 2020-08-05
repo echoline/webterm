@@ -1,6 +1,12 @@
 function ccpolyotk(cs, ds) {
 	var otk = new Uint8Array(ChachaBsize);
 
+	ds.len = 0;
+	ds.state = new Uint32Array(16);
+	ds.buf = new Uint8Array(256);
+	ds.blen = 0;
+	ds.seeded = 0;
+
 	chacha_setblock(cs, new Uint32Array(2));
 	chacha_encrypt(otk, ChachaBsize, cs);
 	poly1305(null, 0, otk, 32, null, ds);
@@ -29,16 +35,29 @@ function ccpolylen(n, tag, ds) {
 	poly1305(info, 8, null, 0, tag, ds);
 }
 
+function ccpoly_encrypt(dat, ndat, aad, naad, tag, cs) {
+	var ds = {};
+
+	ccpolyotk(cs, ds);
+	if (cs.ivwords == 2) {
+		poly1305(aad, naad, null, 0, null, ds);
+		ccpolylen(naad, null, ds);
+		chacha_encrypt(dat, ndat, cs);
+		poly1305(dat, ndat, null, 0, null, ds);
+		ccpolylen(ndat, tag, ds);
+	} else {
+		ccpolypad(aad, naad, ds);
+		chacha_encrypt(dat, ndat, cs);
+		ccpolypad(dat, ndat, ds);
+		ccpolylen(naad, null, ds);
+		ccpolylen(ndat, tag, ds);
+	}
+}
+
 function ccpoly_decrypt(dat, ndat, aad, naad, tag, cs) {
 	var ds = {};
 	var tmp = new Uint8Array(16);
 	var i;
-
-	ds.len = 0;
-	ds.state = new Uint32Array(16);
-	ds.buf = new Uint8Array(256);
-	ds.blen = 0;
-	ds.seeded = 0;
 
 	ccpolyotk(cs, ds);
 	if (cs.ivwords == 2) {
