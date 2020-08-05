@@ -66,8 +66,8 @@ function authpak_hash(k, u) {
 }
 
 function gentest(n) {
-	buf = zerobytes(n);
-	s = setupChachastate(null, buf, 32, buf, 12, 0);
+	var buf = zerobytes(n);
+	var s = setupChachastate(null, buf, 32, buf, 12, 0);
 	chacha_encrypt(buf, n, s);
 	return buf;
 }

@@ -155,15 +155,13 @@ function startauth() {
 						authconn.send(btoa(a));
 						break;
 					case 1:
+						authconn.close();
+
 						authstate++;
 						a = unpack(a, AuthOK);
 						Kc = a.Kc;
 						Ks = a.Ks;
-						var aKc = str2arr(Kc);
-						if (!form1M2B(aKc, aKc.length, authkey.pakkey))
-							alert(arr2str(aKc));
 
-						authconn.close();
 						break;
 					}
 				}
