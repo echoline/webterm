@@ -103,7 +103,7 @@ function authpak_new(p, k, y) {
 	c = authpak_curve();
 
 	X.flags |= MPtimesafe;
-	mpnrand(c.P, chachabytes, X);
+	mpnrand(c.P, gentest, X);
 
 	spake2ee_1(c.P,c.A,c.D, X, c.X,c.Y, PX,PY,PZ,PT, Y);
 
@@ -147,7 +147,6 @@ function authpak_finish(p, k, y) {
 	Z.flags |= MPtimesafe;
 	X.flags |= MPtimesafe;
 	betomp(p.x, PAKXLEN, X);
-	p.x = null;
 
 	betomp(y, PAKYLEN, Y);
 
@@ -158,7 +157,6 @@ function authpak_finish(p, k, y) {
 		mptober(Z, z, 0, PAKSLEN);
 
 		s = sha2_256(p.y, PAKYLEN, null, null);
-		p.y = null;
 		sha2_256(y, PAKYLEN, salt, s);
 
 		k.pakkey = new Uint8Array(PAKKEYLEN);
@@ -168,8 +166,6 @@ function authpak_finish(p, k, y) {
 
 		return 0;
 	}
-
-	p.y = null;
 
 	return -1;
 }

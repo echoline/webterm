@@ -228,12 +228,12 @@ function mpvectscmp(a, alen, b, blen) {
 		x[3] = 0;
 		while (alen > blen)
 			x[3] |= a[--alen];
-		m[0] = m[1] = (-x[3]^x[3]|x[3])>>Dbits-1;
+		m[0] = m[1] = (-x[3]^x[3]|x[3])>>>Dbits-1;
 	} else if (blen > alen) {
 		x[3] = 0;
 		while (blen > alen)
 			x[3] |= b[--blen];
-		m[0] = (-x[3]^x[3]|x[3])>>Dbits>>1;
+		m[0] = (-x[3]^x[3]|x[3])>>>Dbits-1;
 		m[1] = m[0]^1;
 	} else
 		m[0] = m[1] = 0;

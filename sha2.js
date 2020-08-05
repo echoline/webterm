@@ -99,7 +99,6 @@ function sha2_64(p, len, digest, s, dlen) {
 	var x = new Uint32Array(16);
 	var buf = new Uint8Array(128);
 	var e;
-	var b = 0;
 
 	if (!p)
 		p = new Uint8Array(len);
@@ -111,7 +110,7 @@ function sha2_64(p, len, digest, s, dlen) {
 		s.buf.set(p.slice(0, i), s.blen);
 		len -= i;
 		s.blen += i;
-		b += i;
+		p = p.slice(i);
 		if (s.blen == 64){
 			sha2block64(s.buf, s.blen, s.state);
 			s.len += s.blen;

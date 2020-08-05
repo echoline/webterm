@@ -11,7 +11,7 @@ import (
 	"net/http"
 )
 
-var authsrv = flag.String("a", "cloud9.echoline.org:567", "auth server to proxy to")
+var authsrv = flag.String("a", "cloud9.echoline.org:2000", "auth server to proxy to")
 var rcpusrv = flag.String("c", "cloud9.echoline.org:17019", "rcpu server to proxy to")
 
 var listen = flag.String("l", ":8443", "websocket server bind address")

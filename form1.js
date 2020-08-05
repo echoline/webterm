@@ -49,7 +49,7 @@ function form1M2B(ap, n, key) {
 		return -1;
 
 	ap[0] = num;
-	ap.set(p, 1);
+	ap.set(p.slice(0, n), 1);
 	return n+1;
 }
 
