@@ -7,8 +7,8 @@ const AuthenticatorC = ["b56:YBs","b124:Ks","b68:Kn"];
 const AuthenticatorS = ["b68:Kn"];
 const Ticket = ["i1:num","b8:chal","b28:cuid","b28:suid","b32:key"];
 
-var username;
-var password;
+var username = "";
+var password = "";
 var authkey = {};
 var authpriv = {};
 var state;
@@ -20,7 +20,6 @@ var cchal, schal;
 var authstate;
 var authbuf;
 var onauthmsg;
-var Ks, Kc;
 
 function newWebSocket(url) {
 	if(window.WebSocket != undefined)
@@ -37,34 +36,71 @@ function passtokey(key, pw) {
 	pbkdf2_x(pw, pw.length, salt, salt.length, 9001, key.aes, AESKEYLEN, hmac_sha1, SHA1dlen);
 }
 
-function startauth() {
-	username = prompt("username", "");
-	password = prompt("password", "");
+function getlogin() {
+	var term = document.getElementById('terminal').firstChild;
+	var termoninput = term.oninput;
 
-	if (!username)
-		username = "";
-	if (!password)
-		password = "";
+	username = "";
+	password = "";
+
+	term.writeterminal("username: ");
+	term.oninput = function(event) {
+		if (event.inputType == 'insertText') {
+			username += event.data;
+		}
+		else if (event.inputType == 'deleteContentBackward') {
+			username = username.substring(0, username.length-1);
+		}
+		else if (event.inputType == 'insertLineBreak') {
+			term.flush();
+			term.writeterminal("\npassword: ");
+			term.oninput = function(event) {
+				termoninput(event);
+				if (event.inputType == 'insertText') {
+					password += event.data;
+					for (var i = 0; i < event.data.length; i++)
+						term.addchar(8);
+				}
+				else if (event.inputType == 'deleteContentBackward')
+					password = password.substring(0, password.length-1);
+				else if (event.inputType == 'insertLineBreak') {
+					term.flush();
+					term.oninput = termoninput;
+					startauth();
+				}
+				return false;
+			}
+			return false;
+		}
+		termoninput(event);
+		return false;
+	}
+}
+
+function startauth() {
+	var term = document.getElementById('terminal').firstChild;
 
 	passtokey(authkey, str2arr(password));
 	password = null;
 
 	cpubuf = "";
 	conn = newWebSocket("wss://echoline.org:8443/rcpu");
-	conn.onmessage = function(evt) {
-		cpubuf += atob(evt.data);
+	conn.onmessage = function(event) {
+		cpubuf += atob(event.data);
 		if(oncpumsg)
 			while(cpubuf != "" && oncpumsg() > 0)
 				;
 	}
 	conn.onerror = fatal;
-	conn.onclose = function(evt) {
-		document.getElementById('terminal').firstChild.writeterminal('conn closed: ' + evt.code + '\n');
+	conn.onclose = function(event) {
+		getlogin();
 	}
-	conn.onopen = function(evt) {
+	conn.onopen = function(event) {
 		state = 0;
 		oncpumsg = function() {
-			var i, s, arr, arr2, y;
+			var i, s, arr, arr2, y, crand;
+
+			crand = arr2str(chachabytes(64));
 
 			switch(state){
 			case 0:
@@ -116,7 +152,6 @@ function startauth() {
 				s.uid = username;
 				schal = s.chal;
 				authid = s.authid;
-				document.getElementById('terminal').firstChild.writeterminal('dom: ' + s.authdom + '\n');
 
 				y = new Uint8Array(PAKYLEN);
 				authpak_new(authpriv, authkey, y);
@@ -125,10 +160,10 @@ function startauth() {
 
 				authbuf = "";
 				authconn = newWebSocket("wss://echoline.org:8443/auth");
-				authconn.onmessage = function(evt) {
+				authconn.onmessage = function(event) {
 					var i, a;
 
-					authbuf += atob(evt.data);
+					authbuf += atob(event.data);
 
 					switch(authstate) {
 					case 0:
@@ -160,6 +195,8 @@ function startauth() {
 						if (authpak_finish(authpriv, authkey, str2arr(a.YBc)))
 							fatal("authpak_finish failed");
 
+						y = a.YBs;
+
 						a = {};
 						a.type = 1;
 						a.authid = authid;
@@ -174,22 +211,31 @@ function startauth() {
 
 						authstate++;
 						a = unpack(a, AuthOK);
-						Kc = a.Kc;
-						Ks = a.Ks;
-						var aKc = str2arr(Kc);
-						var aKs = str2arr(Ks);
+						var aKc = str2arr(a.Kc);
+						var Ks = a.Ks;
 						var authok = true;
+						var nonce;
+
 						if (form1M2B(aKc, aKc.length, authkey.pakkey) < 0)
 							authok = false;
 						if (authok) {
 							a = unpack(arr2str(aKc), Ticket);
 							if (a.num != AuthTc)
 								authok = false;
+							else
+								nonce = a.key;
 						}
 						if (!authok) {
-							alert("password incorrect")
+							term.writeterminal("password incorrect\n")
+							term.flush();
 							conn.close();
-							startauth();
+						} else {
+							term.writeterminal("logged in\n")
+							term.flush();
+
+							a.num = AuthAc;
+							a.key = crand.substring(0, 32);
+							a = pack(a, Ticket);
 						}
 						break;
 					}
@@ -198,8 +244,7 @@ function startauth() {
 					authconn.send(btoa(s));
 					authbuf = "";
 				}
-				authconn.onclose = function(evt) {
-					document.getElementById('terminal').firstChild.writeterminal('authconn closed: ' + evt.code + '\n');
+				authconn.onclose = function(event) {
 				}
 				authconn.onerror = fatal;
 				break;
@@ -207,9 +252,9 @@ function startauth() {
 				state++;
 				if (s.substring(0, 8) == 'form1 As') {
 					s = unpack(s, AuthenticatorS);
-					document.getElementById('terminal').firstChild.writeterminal('authenticated\n');
+					term.writeterminal('authenticated\n');
 				} else {
-					document.getElementById('terminal').firstChild.writeterminal('?' + s + '\n');
+					term.writeterminal('?' + s + '\n');
 				}
 				oncpumsg = got9praw;
 				break;

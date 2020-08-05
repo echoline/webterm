@@ -62,8 +62,9 @@ function ccpoly_decrypt(dat, ndat, aad, naad, tag, cs) {
 		ccpolylen(naad, null, ds);
 		ccpolylen(ndat, tmp, ds);
 	}
-	if (tsmemcmp(tag, tmp, 16) != 0)
-		return -1;
+	for (i = 0; i < 16; i++)
+		if (tmp[i] != tag[i])
+			return -1;
 	chacha_encrypt(dat, ndat, cs);
 	return 0;
 }

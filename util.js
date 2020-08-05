@@ -71,25 +71,6 @@ function toutf8(s) {
 	return unescape(encodeURIComponent(s));
 }
 
-function tsmemcmp(a1, a2, n) {
-	var lt, gt, c1, c2, r, m;
-	var i;
-
-	r = m = 0;
-	i = 0;
-
-	while (n--) {
-		c1 = a1[i];
-		c2 = a2[i];
-		i++;
-		lt = (c1 - c2) >> 8;
-		gt = (c2 - c1) >> 8;
-		r |= (lt - gt) & ~m;
-		m |= lt | gt;
-	}
-	return r;
-}
-
 function encode32(output, offset, input, len) {
 	var x = new Uint32Array(1);
 	var e, i, end;
