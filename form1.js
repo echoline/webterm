@@ -16,7 +16,7 @@ const form1sig = [
 	[AuthHr,	"form1 Hr"],
 ];
 
-var counter = new Uint32Array(1);
+var form1counter = new Uint32Array(1);
 
 function form1check(ap, n) {
 	if (n < 8)
@@ -30,7 +30,35 @@ function form1check(ap, n) {
 }
 
 function form1B2M(ap, n, key) {
-	fatal("form1B2M unimplemented");
+	var s;
+	var p;
+	var i;
+	var tag = new Uint8Array(16);
+
+	for (i = form1sig.length-1; i >= 0; i--)
+		if (form1sig[i][0] == ap[0])
+			break;
+	if (i < 0)
+		fatal("invalid form1 signature");
+
+	p = new Uint8Array(n-1);
+	p.set(ap.slice(1, n), 0);
+	n--;
+
+	ap.set(str2arr(form1sig[i][1]), 0);
+	i = new Uint32Array(1);
+	i[0] = form1counter[0]++;
+	ap[8] = i[0] & 0xFF;
+	ap[9] = (i[0] >> 8) & 0xFF
+	ap[10] = (i[0] >> 16) & 0xFF
+	ap[11] = (i[0] >>> 24) & 0xFF
+
+	s = setupChachastate(null, key, 32, ap, 12, 20);
+	ccpoly_encrypt(p, n, null, 0, tag, s);
+	ap.set(p.slice(0, n), 12);
+	ap.set(tag, 12+n);
+
+	return 12+16+n;
 }
 
 function form1M2B(ap, n, key) {

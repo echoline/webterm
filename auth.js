@@ -3,23 +3,15 @@ const AuthPAKS2C = ["i1:type","s28:authid","s48:authdom","b8:chal","s28:hostid",
 const AuthPAKC2A = ["i1:type","s28:authid","s48:authdom","b8:chal","s28:hostid","s28:uid","b56:YAs","b56:YAc"];
 const AuthPAKA2C = ["i1:type","b56:YBs","b56:YBc"];
 const AuthOK = ["i1:type","b124:Kc","b124:Ks"];
-const AuthenticatorC = ["b56:YBs","b124:Ks","b68:Kn"];
-const AuthenticatorS = ["b68:Kn"];
+const Authenticator = ["b8:chal","b32:nonce"];
 const Ticket = ["i1:num","b8:chal","b28:cuid","b28:suid","b32:key"];
 
-var username = "";
-var password = "";
-var authkey = {};
-var authpriv = {};
-var state;
+var username;
+var password;
+var authinfo;
+var conn;
 var cpubuf;
 var oncpumsg;
-var authdom;
-var conn;
-var cchal, schal;
-var authstate;
-var authbuf;
-var onauthmsg;
 
 function newWebSocket(url) {
 	if(window.WebSocket != undefined)
@@ -53,6 +45,14 @@ function getlogin() {
 		}
 		else if (event.inputType == 'insertLineBreak') {
 			term.flush();
+			if (username == "") {
+				term.writeterminal("\n");
+				username = "guest";
+				password = "gratisse";
+				term.oninput = termoninput;
+				startauth();
+				return false;
+			}
 			term.writeterminal("\npassword: ");
 			term.oninput = function(event) {
 				termoninput(event);
@@ -79,11 +79,14 @@ function getlogin() {
 
 function startauth() {
 	var term = document.getElementById('terminal').firstChild;
+	var authkey = {};
 
 	passtokey(authkey, str2arr(password));
 	password = null;
 
+	authinfo = {}
 	cpubuf = "";
+
 	conn = newWebSocket("wss://echoline.org:8443/rcpu");
 	conn.onmessage = function(event) {
 		cpubuf += atob(event.data);
@@ -96,11 +99,16 @@ function startauth() {
 		getlogin();
 	}
 	conn.onopen = function(event) {
-		state = 0;
-		oncpumsg = function() {
-			var i, s, arr, arr2, y, crand;
+		var crand = arr2str(chachabytes(32));
+		var state = 0;
+		var authdom;
+		var authpriv = {};
+		var nonce;
+		var cchal, schal;
+		var y;
 
-			crand = arr2str(chachabytes(64));
+		oncpumsg = function() {
+			var i, s;
 
 			switch(state){
 			case 0:
@@ -118,6 +126,13 @@ function startauth() {
 				cpubuf = cpubuf.substring(i);
 				break;
 			case 2:
+				i = 68;
+				if(cpubuf.length < i)
+					return -1;
+				s = cpubuf.substring(0, i);
+				cpubuf = cpubuf.substring(i);
+				break;
+			default:
 				s = cpubuf;
 				cpubuf = "";
 				break;
@@ -126,13 +141,13 @@ function startauth() {
 			switch(state){
 			case 0:
 				state++;
-				arr = s.split(' ');
+				var arr = s.split(' ');
 				if(arr[0] == 'v.2')
 					fatal("p9any v.2 unimplemented");
 				for(i = 0; i < arr.length; i++){
-					arr2 = arr[i].split('@');
+					var arr2 = arr[i].split('@');
 					if(arr2[0] == 'dp9ik'){
-						cchal = randomstring(8);
+						cchal = arr2str(chachabytes(8));
 						conn.send(btoa(arr2[0] + ' ' + arr2[1] + '\0' + cchal));
 						authdom = arr2[1];
 						break;
@@ -144,7 +159,8 @@ function startauth() {
 				break;
 			case 1:
 				state++;
-				authstate = 0;
+				var authstate = 0;
+				var authbuf = "";
 
 				s = unpack(s, AuthPAKS2C);
 				s.type = 19;
@@ -158,7 +174,6 @@ function startauth() {
 				s.YAc = arr2str(y);
 				s = pack(s, AuthPAKC2A);
 
-				authbuf = "";
 				authconn = newWebSocket("wss://echoline.org:8443/auth");
 				authconn.onmessage = function(event) {
 					var i, a;
@@ -214,28 +229,40 @@ function startauth() {
 						var aKc = str2arr(a.Kc);
 						var Ks = a.Ks;
 						var authok = true;
-						var nonce;
 
 						if (form1M2B(aKc, aKc.length, authkey.pakkey) < 0)
 							authok = false;
 						if (authok) {
 							a = unpack(arr2str(aKc), Ticket);
+							if (a.chal != schal)
+								fatal("invalid challenge from auth server");
+
 							if (a.num != AuthTc)
 								authok = false;
-							else
+							else {
 								nonce = a.key;
+								authinfo.suid = a.suid;
+								authinfo.cuid = a.cuid;
+							}
 						}
 						if (!authok) {
 							term.writeterminal("password incorrect\n")
 							term.flush();
+
 							conn.close();
 						} else {
-							term.writeterminal("logged in\n")
-							term.flush();
+							conn.send(btoa(y));
+							conn.send(btoa(Ks));
 
-							a.num = AuthAc;
-							a.key = crand.substring(0, 32);
-							a = pack(a, Ticket);
+							a = {};
+							a.chal = schal;
+							a.nonce = crand;
+							a = str2arr(pack(a, Authenticator));
+							var b = new Uint8Array(68);
+							b[0] = AuthAc;
+							b.set(a, 1);
+							form1B2M(b, 41, str2arr(nonce));
+							conn.send(btoa(arr2str(b)));
 						}
 						break;
 					}
@@ -250,15 +277,37 @@ function startauth() {
 				break;
 			case 2:
 				state++;
-				if (s.substring(0, 8) == 'form1 As') {
-					s = unpack(s, AuthenticatorS);
-					term.writeterminal('authenticated\n');
-				} else {
-					term.writeterminal('?' + s + '\n');
+				s = str2arr(s);
+				if (form1M2B(s, 68, str2arr(nonce)) < 0 || s[0] != AuthAs) {
+					term.writeterminal('incorrect password\n');
+					term.flush();
+					conn.close();
+					break;
 				}
-				oncpumsg = got9praw;
+
+				s = unpack(arr2str(s.slice(1)), Authenticator);
+				if (s.chal != cchal)
+					fatal("invalid challenge from server");
+				crand += s.nonce;
+				term.writeterminal('logged in\n');
+				term.flush();
+
+				authinfo.nsecret = 256;
+				authinfo.secret = new Uint8Array(256);
+
+				var info = str2arr("Plan 9 session secret");
+				hkdf_x(str2arr(crand), 64, info, info.length,
+					str2arr(nonce), 32,
+					authinfo.secret, authinfo.nsecret,
+					hmac_sha2_256, SHA2_256dlen);
+
+				//oncpumsg = gottlsraw;
+				break;
+			default:
+				term.writeterminal(s);
 				break;
 			}
+
 			return 1;
 		}
 	}

@@ -116,7 +116,7 @@ function poly1305(m, len, key, klen, digest, s) {
 
 		if (len) {
 			s.blen = len;
-			s.buf.set(m, len);
+			s.buf.set(m.slice(0, len), 0);
 		}
 
 		if (!digest) {
