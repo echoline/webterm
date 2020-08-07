@@ -11,12 +11,12 @@ function newTerminal() {
 		if(event.which == 46){
 			ta.addchar(127);
 			return false;
-//		} else if(event.which >= 65 && event.which <= 91 && event.ctrlKey){
-//			ta.addchar(event.which - 64);
-//			return false;
-//		} else if(event.which == 32 || event.which == 9 || event.which == 8 || event.which == 27) {
-//			ta.addchar(event.which);
-//			return false;
+		} else if(event.which >= 65 && event.which <= 91 && event.ctrlKey){
+			ta.addchar(event.which - 64);
+			return false;
+		} else if(event.which == 32 || event.which == 9 || event.which == 27) {
+			ta.addchar(event.which);
+			return false;
 		}
 	}
 	ta.onpaste = function(event) {

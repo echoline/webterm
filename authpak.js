@@ -103,7 +103,7 @@ function authpak_new(p, k, y) {
 	c = authpak_curve();
 
 	X.flags |= MPtimesafe;
-	mpnrand(c.P, chachabytes, X);
+	mpnrand(c.P, gentest, X);
 
 	spake2ee_1(c.P,c.A,c.D, X, c.X,c.Y, PX,PY,PZ,PT, Y);
 

@@ -29,7 +29,6 @@ function passtokey(key, pw) {
 }
 
 function getlogin() {
-	var term = document.getElementById('terminal').firstChild;
 	var termoninput = term.oninput;
 
 	username = "";
@@ -78,7 +77,6 @@ function getlogin() {
 }
 
 function startauth() {
-	var term = document.getElementById('terminal').firstChild;
 	var authkey = {};
 
 	passtokey(authkey, str2arr(password));
@@ -99,7 +97,7 @@ function startauth() {
 		getlogin();
 	}
 	conn.onopen = function(event) {
-		var crand = arr2str(chachabytes(32));
+		var crand = arr2str(gentest(32));
 		var state = 0;
 		var authdom;
 		var authpriv = {};
@@ -147,7 +145,7 @@ function startauth() {
 				for(i = 0; i < arr.length; i++){
 					var arr2 = arr[i].split('@');
 					if(arr2[0] == 'dp9ik'){
-						cchal = arr2str(chachabytes(8));
+						cchal = arr2str(gentest(8));
 						conn.send(btoa(arr2[0] + ' ' + arr2[1] + '\0' + cchal));
 						authdom = arr2[1];
 						break;
@@ -301,7 +299,10 @@ function startauth() {
 					authinfo.secret, authinfo.nsecret,
 					hmac_sha2_256, SHA2_256dlen);
 
-				//oncpumsg = gottlsraw;
+				oncpumsg = gottlsraw;
+				sec.psklen = authinfo.nsecret;
+				sec.psk.set(authinfo.secret, 0);
+				tlsClientHello();
 				break;
 			default:
 				term.writeterminal(s);
