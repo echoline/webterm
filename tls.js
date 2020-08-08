@@ -163,10 +163,9 @@ function tlsrecsend(s, type) {
 	var out = btoc(type);
 	out += put16(ProtocolVersion);
 	out += put16(s.length);
-	out += tlsbuf;
+	out += s;
 
 	conn.send(out);
-	tlsbuf = "";
 }
 
 function tlshandshakerecv(s) {
@@ -227,7 +226,7 @@ function tlshandshakerecv(s) {
 				break;
 			case HFinished:
 				for (j = 0; j < n; j++)
-					if (s.charCodeAt(j) != verify[n])
+					if (s.charCodeAt(j) != verify[j])
 						fatal ("finished verification failed");
 				break;
 			default:
@@ -426,8 +425,15 @@ function p_sha256(buf, nbuf, key, nkey, label, nlabel, seed, nseed) {
 function tlsSecFinished(finished, isclient) {
 	var seed = new Uint8Array(32);
 	var label = str2arr((isclient? "client": "server") + " finished");
+	var hsh = newDigestState();
 
-	sha2_256(null, 0, seed, hsha2_256);
+	hsh.len = hsha2_256.len;
+	hsh.blen = hsha2_256.blen;
+	hsh.buf.set(hsha2_256.buf, 0);
+	hsh.state.set(hsha2_256.state, 0);
+	hsh.seeded = 1;
+
+	sha2_256(null, 0, seed, hsh);
 
 	p_sha256(finished, 12, sec.sec, 48, label, label.length, seed, 32);
 }
@@ -456,24 +462,22 @@ function setMasterSecret(pm) {
 
 function tlsFinished(verify) {
 	var p;
-	var sendp;
 	var s;
+	var buf;
 
-	sendp = tlsbuf.length;
 	p = 0;
-	tlsbuf += btoc(HFinished) + '\0\0\0';
+	buf = btoc(HFinished) + '\0\0\0';
 	p += 4;
 
-	tlsbuf += arr2str(verify);
+	buf += arr2str(verify);
 	p += verify.length;
 
 	s = put24(p-4);
-	tlsbuf = tlsbuf.replaceAt(sendp + 1, s);
+	buf = buf.replaceAt(1, s);
 
-	msgHash(str2arr(tlsbuf.substring(sendp, sendp+p)), p);
+	msgHash(str2arr(buf), p);
 
-	tlsrecsend(tlsbuf, 0x16);
-	tlsbuf = "";
+	tlsrecsend(buf, 0x16);
 }
 
 function msgHash(p, n) {

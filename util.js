@@ -1,4 +1,5 @@
 function fatal(msg) {
+	conn.close();
 	throw msg;
 }
 
