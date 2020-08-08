@@ -299,7 +299,7 @@ function startauth() {
 					authinfo.secret, authinfo.nsecret,
 					hmac_sha2_256, SHA2_256dlen);
 
-				oncpumsg = gottlsraw;
+				oncpumsg = gottlshandshake;
 				sec.psklen = authinfo.nsecret;
 				sec.psk.set(authinfo.secret, 0);
 				tlsClientHello();

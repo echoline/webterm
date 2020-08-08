@@ -5,8 +5,11 @@ const HServerHello = 2;
 const HServerHelloDone = 14;
 const HClientKeyExchange = 16;
 const HFinished = 20;
+const MaxRecLen = 1<<14;
+const MaxCipherRecLen = MaxRecLen + 2048;
 
 var tlsbuf = "";
+var verify = new Uint8Array(12);
 
 var sid;
 var sec = {psk:new Uint8Array(256),psklen:256,
@@ -49,9 +52,69 @@ function short() {
 class tlsConn {
 	constructor(ws) {
 		this.c = ws;
+		this.c.tls = this;
+		this.outseq = new Uint32Array(2);
+		this.inseq = new Uint32Array(2);
+		this.outkey = sec.secrets.slice(0, 32);
+		this.inkey = sec.secrets.slice(32, 64);
+		this.outiv = sec.secrets.slice(64, 64+12);
+		this.iniv = sec.secrets.slice(64+12, 64+12*2);
+		this.outenc = setupChachastate(null, this.outkey, 32, this.outiv, 12, 20);
+		this.inenc = setupChachastate(null, this.inkey, 32, this.iniv, 12, 20);
 
 		ws.onmessage = function(evt) {
-			cpubuf += atob(evt.data);
+			var s = atob(evt.data);
+			cpubuf += s;
+			var ndata = s.length;
+			if (ndata < 5)
+				return;
+			s = cpubuf;
+			cpubuf = "";
+			ndata = s.length;
+			while (ndata > 0) {
+				var type = ctob(s, 0);
+				var ver = get16(s, 1);
+				var len = get16(s, 3);
+				var b = str2arr(s.substring(5, 5+len));
+				var iv = new Uint8Array(12);
+				var tag;
+				var i;
+
+				if (ver != ProtocolVersion)
+					fatal("incorrect protocol version in tls read");
+				if (len > MaxCipherRecLen || len < 0)
+					fatal("tls record length invalid");
+
+				if (type == 0x14) {
+					cpubuf += s.substring(0, 5+len);
+					s = s.substring(5+len);
+					ndata -= len + 5;
+					continue;
+				}
+
+				if (len < 16)
+					fatal("tls record length invalid");
+				len -= 16;
+
+				var rec = s.substring(0, 3) + put16(len);
+				var aad = str2arr(put16((this.tls.inseq[0] >>> 16) & 0xFFFF) + put16(this.tls.inseq[0] & 0xFFFF) + put16((this.tls.inseq[1] >>> 16) & 0xFFFF) + put16(this.tls.inseq[1] & 0xFFFF) + s.substring(0, 3) + put16(len));
+				this.tls.inseq[1]++;
+				if (this.tls.inseq[1] == 0)
+					this.tls.inseq[0]++;
+
+				tag = b.slice(len, len+16);
+				iv.set(this.tls.iniv, 0);
+				for (i = 0; i < 8; i++)
+					iv[i+4] ^= aad[i];
+				chacha_setiv(this.tls.inenc, iv);
+				if (ccpoly_decrypt(b, len, aad, 13, tag, this.tls.inenc) != 0)
+					fatal("tls decrypt error");
+				rec += arr2str(b.slice(0, len));
+
+				cpubuf += rec;
+				ndata -= 5 + len + 16;
+				s = s.substring(5 + len + 16);
+			}
 
 			if (oncpumsg)
 				while(cpubuf != "" && oncpumsg() > 0);
@@ -60,21 +123,59 @@ class tlsConn {
 }
 
 tlsConn.prototype.send = function(s) {
-	return this.c.send(s);
+	var aadlen = 13;
+	var aad;
+	var len = get16(s, 3);
+	var type = ctob(s, 0);
+	var maclen = 16;
+	var tag = new Uint8Array(16);
+	var i;
+	var iv = new Uint8Array(12);
+	var b = str2arr(s.substring(5, 5+len));
+
+	if (len > MaxCipherRecLen || len < 0)
+		fatal("tls record length invalid");
+
+	aad = str2arr(put16((this.outseq[0] >>> 16) & 0xFFFF) +
+		put16(this.outseq[0] & 0xFFFF) +
+		put16((this.outseq[1] >>> 16) & 0xFFFF) +
+		put16(this.outseq[1] & 0xFFFF) + s.substring(0, 5));
+	this.outseq[1]++;
+	if (this.outseq[1] == 0)
+		this.outseq[0]++;
+
+	iv.set(this.outiv, 0);
+	for (i = 0; i < 8; i++)
+		iv[i+4] ^= aad[i];
+	chacha_setiv(this.outenc, iv);
+	ccpoly_encrypt(b, len, aad, aadlen, tag, this.outenc);
+
+	var ret = s.substring(0, 3) + put16(len+16) + arr2str(b) + arr2str(tag);
+
+	return this.c.send(btoa(ret));
 }
 
 tlsConn.prototype.close = function() {
 	return this.c.close();
 }
 
-function tlsrecrecv(s) {
+function tlsrecsend(s, type) {
+	var out = btoc(type);
+	out += put16(ProtocolVersion);
+	out += put16(s.length);
+	out += tlsbuf;
+
+	conn.send(out);
+	tlsbuf = "";
+}
+
+function tlshandshakerecv(s) {
 	var rectype = ctob(s, 0);
 	var version = get16(s, 1);
 	var length = get16(s, 3);
-	var n;
+	var n = 0;
 	var i, j;
 	var a;
-	var verify = new Uint8Array(12);
 
 	if (version != ProtocolVersion)
 		fatal("invalid tls version");
@@ -86,11 +187,16 @@ function tlsrecrecv(s) {
 
 	for (i = length; i > 0;) {
 		switch(rectype) {
+		case 0x14:
+			if (length != 1 || s.charCodeAt(0) != 0x01)
+				fatal("invalid server change cipher spec");
+			n = 1;
+			break;
 		case 0x15:
 			if (length != 2)
 				fatal ("invalid tls alert record length");
 			term.print("tls alert: " + ctob(s, 0) + " " + ctob(s, 1) + "\n");
-			i -= 2;
+			n = 2;
 			break;
 		case 0x16:
 			var type = ctob(s, 0);
@@ -129,7 +235,7 @@ function tlsrecrecv(s) {
 			}
 			break;
 		default:
-			fatal("invalid tls record type: " + type);
+			fatal("invalid tls record type: " + rectype);
 		}
 		i -= n;
 		s = s.substring(n);
@@ -137,13 +243,12 @@ function tlsrecrecv(s) {
 	return (length + 5);
 }
 
-function tlsrecsend(s) {
+function tlshandshakesend(s) {
 	var type = ctob(s, 0);
 
 	switch(type) {
 	case HClientHello:
 	case HClientKeyExchange:
-	case HFinished:
 		s = btoc(0x16) + put16(ProtocolVersion) + put16(s.length) + s;
 		break;
 	default:
@@ -179,10 +284,12 @@ function tlsClientHello() {
 	p++;
 
 	// ciphers
-	tlsbuf += put16(2);
+	tlsbuf += put16(6);
 	p += 2;
 	tlsbuf += put16(0xCCAB);
-	p += 2;
+	tlsbuf += put16(0x00AE);
+	tlsbuf += put16(0x008C);
+	p += 6;
 
 	// no compressors
 	tlsbuf += btoc(0x01) + btoc(0x00);
@@ -195,7 +302,7 @@ function tlsClientHello() {
 
 	msgHash(str2arr(tlsbuf.substring(sendp, sendp+p)), p);
 
-	tlsrecsend(tlsbuf);
+	tlshandshakesend(tlsbuf);
 	tlsbuf = "";
 }
 
@@ -280,7 +387,7 @@ function tlsClientKeyExchange() {
 
 	msgHash(str2arr(tlsbuf.substring(sendp, sendp+p)), p);
 
-	tlsrecsend(tlsbuf);
+	tlshandshakesend(tlsbuf);
 	tlsbuf = "";
 }
 
@@ -288,7 +395,6 @@ function tlsChangeCipher() {
 	var s = btoc(0x14) + put16(ProtocolVersion) + put16(1) + btoc(1);
 
 	conn.send(btoa(s));
-
 	conn = new tlsConn(conn);
 }
 
@@ -366,7 +472,7 @@ function tlsFinished(verify) {
 
 	msgHash(str2arr(tlsbuf.substring(sendp, sendp+p)), p);
 
-	tlsrecsend(tlsbuf);
+	tlsrecsend(tlsbuf, 0x16);
 	tlsbuf = "";
 }
 
@@ -374,8 +480,8 @@ function msgHash(p, n) {
 	sha2_256(p, n, 0, hsha2_256);
 }
 
-function gottlsraw() {
-	var n = tlsrecrecv(cpubuf);
+function gottlshandshake() {
+	var n = tlshandshakerecv(cpubuf);
 
 	cpubuf = cpubuf.substring(n);
 

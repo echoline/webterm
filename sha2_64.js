@@ -55,8 +55,7 @@ function sha2block64(p, len, s) {
 	var i, j;
 
 	for (i = 0; i < len;){
-		for (j = 0; j < 8; j++)
-			a[j] = s[j];
+		a.set(s.slice(0, 8), 0);
 
 		for (j = 0; j < 64; j++) {
 			if (j < 16) {
