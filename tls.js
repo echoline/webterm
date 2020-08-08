@@ -58,7 +58,7 @@ class tlsConn {
 		this.outkey = sec.secrets.slice(0, 32);
 		this.inkey = sec.secrets.slice(32, 64);
 		this.outiv = sec.secrets.slice(64, 64+12);
-		this.iniv = sec.secrets.slice(64+12, 64+12*2);
+		this.iniv = sec.secrets.slice(64+12, 64+24);
 		this.outenc = setupChachastate(null, this.outkey, 32, this.outiv, 12, 20);
 		this.inenc = setupChachastate(null, this.inkey, 32, this.iniv, 12, 20);
 
@@ -85,7 +85,7 @@ class tlsConn {
 				if (len > MaxCipherRecLen || len < 0)
 					fatal("tls record length invalid");
 
-				if (type == 0x14) {
+				if (type == 0x14 || type == 0x15) {
 					cpubuf += s.substring(0, 5+len);
 					s = s.substring(5+len);
 					ndata -= len + 5;
@@ -274,7 +274,7 @@ function tlsClientHello() {
 	p += 2;
 
 	// random data
-	sec.crandom.set(gentest(32));
+	sec.crandom.set(chachabytes(32));
 	tlsbuf += arr2str(sec.crandom);
 	p += 32;
 
@@ -439,11 +439,11 @@ function tlsSecFinished(finished, isclient) {
 }
 
 function setSecrets() {
-	var kd = new Uint8Array(160);
+	var kd = new Uint8Array((32+12)*2);
 	var seed = new Uint8Array(64);
 
-	seed.set(sec.crandom, 0);
-	seed.set(sec.srandom, 32);
+	seed.set(sec.srandom, 0);
+	seed.set(sec.crandom, 32);
 	p_sha256(kd, 2*(32+12), sec.sec, 48, str2arr("key expansion"), 13, seed, 64);
 
 	sec.nsecret = (32+12)*2;

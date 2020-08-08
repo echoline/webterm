@@ -97,7 +97,7 @@ function startauth() {
 		getlogin();
 	}
 	conn.onopen = function(event) {
-		var crand = arr2str(gentest(32));
+		var crand = arr2str(chachabytes(32));
 		var state = 0;
 		var authdom;
 		var authpriv = {};
@@ -145,7 +145,7 @@ function startauth() {
 				for(i = 0; i < arr.length; i++){
 					var arr2 = arr[i].split('@');
 					if(arr2[0] == 'dp9ik'){
-						cchal = arr2str(gentest(8));
+						cchal = arr2str(chachabytes(8));
 						conn.send(btoa(arr2[0] + ' ' + arr2[1] + '\0' + cchal));
 						authdom = arr2[1];
 						break;
