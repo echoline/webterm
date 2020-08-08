@@ -16,6 +16,7 @@ var sec = {psk:new Uint8Array(256),psklen:256,
 	sec:new Uint8Array(48),
 	crandom:new Uint8Array(32),srandom:new Uint8Array(32)};
 var hsha2_256;
+var ninepbuf = "";
 
 function btoc(b) {
 	return String.fromCharCode(b);
@@ -170,6 +171,10 @@ function tlsrecsend(s, type) {
 	conn.send(out);
 }
 
+function tlswrite(s) {
+	tlsrecsend(s, 0x17);
+}
+
 function tlsrecrecv(s) {
 	var rectype = ctob(s, 0);
 	var version = get16(s, 1);
@@ -192,12 +197,12 @@ function tlsrecrecv(s) {
 			if (length != 1 || s.charCodeAt(0) != 0x01)
 				fatal("invalid server change cipher spec");
 			n = 1;
+			s = s.substring(n);
 			break;
 		case 0x15:
-			if (length != 2)
-				fatal ("invalid tls alert record length");
-			term.print("tls alert: " + ctob(s, 0) + " " + ctob(s, 1) + "\n");
-			n = 2;
+			term.print("tls alert: " + ctob(s, 0) + " " + ctob(s, 1) + " " + s + "\n");
+			n = length;
+			s = s.substring(n);
 			break;
 		case 0x16:
 			var type = ctob(s, 0);
@@ -230,18 +235,42 @@ function tlsrecrecv(s) {
 				for (j = 0; j < n; j++)
 					if (s.charCodeAt(j) != verify[j])
 						fatal ("finished verification failed");
-				term.writeterminal('logged in\n');
-				term.flush();
+				ninepbuf = "";
+var script =
+"syscall fversion 0 65536 buf 256 >/dev/null >[2=1]\n" +
+"mount -nc /fd/0 /mnt/term || exit\n" +
+"bind -q /mnt/term/dev/cons /dev/cons\n" +
+"if(test -r /mnt/term/dev/kbd){\n" +
+"       </dev/cons >/dev/cons >[2=1] aux/kbdfs -dq -m /mnt/term/dev\n" +
+"       bind -q /mnt/term/dev/cons /dev/cons\n" +
+"}\n" +
+"</dev/cons >/dev/cons >[2=1] service=cpu rc -li\n" +
+//"echo -n $status >/mnt/term/env/rstatus >[2]/dev/null\n" +
+"echo -n hangup >/proc/$pid/notepg\n"
+				tlswrite("0000" + script.length + "\n" + script);
+//				document.getElementById('terminal').style.display = 'none';
+//				document.getElementById('buttons').innerHTML = '<input type="button" value="New Window" onclick="javascript:var line = \'hwin\'; var i; for (i = 0; i < line.length; i++) term.addchar(line.charCodeAt(i)); term.addchar(10); term.flush();"><input type="button" style="float:right;" value="Log Out" onclick="javascript:var line = \'exit\'; var i; for (i = 0; i < line.length; i++) term.addchar(line.charCodeAt(i)); term.addchar(10); term.flush();">';
 				break;
 			default:
 				fatal("invalid handshake message type: " + type);
+			}
+			s = s.substring(n);
+			break;
+		case 0x17:
+			n = i;
+			ninepbuf += s.substring(0, n);
+			s = s.substring(n);
+			while(ninepbuf.length > 0) {
+				j = got9praw(ninepbuf);
+				if (j < 0)
+					break;
+				ninepbuf = ninepbuf.substring(j);
 			}
 			break;
 		default:
 			fatal("invalid tls record type: " + rectype);
 		}
 		i -= n;
-		s = s.substring(n);
 	}
 	return (length + 5);
 }

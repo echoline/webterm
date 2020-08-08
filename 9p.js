@@ -37,23 +37,23 @@ var msgtype = {};
 for(i in packets)
 	msgtype[packets[i].name] = i;
 
-function got9praw() {
+function got9praw(s) {
 	var header, packet, t;
 
-	if(cpubuf < 7)
+	if(s.length < 7)
 		return -1;
-	header = unpack(cpubuf, ["i4:size", "i1:type", "i2:tag"]);
-	if(cpubuf.length < header.size)
+	header = unpack(s, ["i4:size", "i1:type", "i2:tag"]);
+	if(s.length < header.size)
 		return -1;
 	t = packets[header.type];
 	if(t == undefined)
 		fatal("unknown message type " + header.type);
-	packet = unpack(cpubuf.substring(0, header.size), t.fmt);
-	cpubuf = cpubuf.substring(header.size);
+	packet = unpack(s.substring(0, header.size), t.fmt);
+	s = s.substring(header.size);
 	if(debug9p)
 		print("<- " + JSON.stringify(packet) + "\n");
 	t.handler(packet);
-	return 1;
+	return header.size;
 }
 
 function send9p(p) {
@@ -61,7 +61,7 @@ function send9p(p) {
 	p.size = pack(p, packets[p.type].fmt).length;
 	if(debug9p)
 		print("-> " + JSON.stringify(p) + " " + btoa(pack(p, packets[p.type].fmt)) + "\n");
-	conn.send(btoa(pack(p, packets[p.type].fmt)));
+	tlswrite(pack(p, packets[p.type].fmt));
 }
 
 function error9p(tag, s) {
@@ -354,7 +354,7 @@ function onflush(t, f) {
 }
 
 mkdir("/dev");
-mkfile("/dev/cons", undefined, function(f, p) { document.getElementById('terminal').terminal.readterminal(p.count, function(l) {respond(p, l);}, p.tag); }, function(f, p) { document.getElementById('terminal').terminal.writeterminal(p.data); respond(p, -1); });
+mkfile("/dev/cons", undefined, function(f, p) { term.readterminal(p.count, function(l) {respond(p, l);}, p.tag); }, function(f, p) { term.writeterminal(p.data); respond(p, -1); });
 mkfile("/dev/consctl", undefined, invalidop, function(f, p) { if(p.data.substr(0, 5) == "rawon") rawmode = true; if(p.data.substr(0, 5) == "rawoff") rawmode = false; respond(p, -1); }, function(f) { rawmode = false; });
-mkfile("/dev/cpunote", undefined, function(f, p) { document.getElementById('terminal').terminal.onnote.push(function(l) { respond(p, l);}); });
-//mkfile("/dev/js", function(f, p){ f.text = ""; }, undefined, function(f, p) { f.text += p.data; respond(p, -1); }, function(f, p) { eval(f.text); });
+mkfile("/dev/cpunote", undefined, function(f, p) { term.onnote.push(function(l) { respond(p, l);}); });
+mkfile("/dev/js", function(f, p){ f.text = ""; }, undefined, function(f, p) { f.text += p.data; respond(p, -1); }, function(f, p) { eval(f.text); });

@@ -38,12 +38,15 @@ function getlogin() {
 	term.oninput = function(event) {
 		if (event.inputType == 'insertText') {
 			username += event.data;
+			termoninput(event);
 		}
 		else if (event.inputType == 'deleteContentBackward') {
 			username = username.substring(0, username.length-1);
+			termoninput(event);
 		}
 		else if (event.inputType == 'insertLineBreak') {
-			term.flush();
+			term.consbuf = "";
+			term.writeterminal(username);
 			if (username == "") {
 				term.writeterminal("\n");
 				username = "guest";
@@ -54,16 +57,19 @@ function getlogin() {
 			}
 			term.writeterminal("\npassword: ");
 			term.oninput = function(event) {
-				termoninput(event);
+				var i;
 				if (event.inputType == 'insertText') {
 					password += event.data;
-					for (var i = 0; i < event.data.length; i++)
+					termoninput(event);
+					for (i = 0; i < event.data.length; i++)
 						term.addchar(8);
 				}
-				else if (event.inputType == 'deleteContentBackward')
+				else if (event.inputType == 'deleteContentBackward') {
 					password = password.substring(0, password.length-1);
+					term.addchar(8);
+				}
 				else if (event.inputType == 'insertLineBreak') {
-					term.flush();
+					term.writeterminal("\n");
 					term.oninput = termoninput;
 					startauth();
 				}
@@ -71,7 +77,6 @@ function getlogin() {
 			}
 			return false;
 		}
-		termoninput(event);
 		return false;
 	}
 }
@@ -94,6 +99,8 @@ function startauth() {
 	}
 	conn.onerror = fatal;
 	conn.onclose = function(event) {
+		document.getElementById("terminal").style.display = 'block';
+		document.getElementById("buttons").innerHTML = '';
 		getlogin();
 	}
 	conn.onopen = function(event) {
@@ -246,7 +253,6 @@ function startauth() {
 						}
 						if (!authok) {
 							term.writeterminal("password incorrect\n")
-							term.flush();
 
 							conn.close();
 						} else {
@@ -279,7 +285,6 @@ function startauth() {
 				s = str2arr(s);
 				if (form1M2B(s, 68, str2arr(nonce)) < 0 || s[0] != AuthAs) {
 					term.writeterminal('incorrect password\n');
-					term.flush();
 					conn.close();
 					break;
 				}
