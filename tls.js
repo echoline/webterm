@@ -86,12 +86,12 @@ class tlsConn {
 				if (len > MaxCipherRecLen || len < 0)
 					fatal("tls record length invalid");
 
-				if (type == 0x14 || type == 0x15) {
+				if (type == 0x14 || (type == 0x15 && len == 2)) {
 					cpubuf += s.substring(0, 5+len);
 					s = s.substring(5+len);
 					ndata -= len + 5;
 					continue;
-				} else if (type != 0x16 && type != 0x17) {
+				} else if (type != 0x15 && type != 0x16 && type != 0x17) {
 					fatal("invalid tls record type");
 				}
 
@@ -200,7 +200,8 @@ function tlsrecrecv(s) {
 			s = s.substring(n);
 			break;
 		case 0x15:
-			term.print("tls alert: " + ctob(s, 0) + " " + ctob(s, 1) + " " + s + "\n");
+			if (ctob(s, 0) != 1 && ctob(s, 1) != 0)
+				term.print("tls alert: " + ctob(s, 0) + " " + ctob(s, 1) + "\n");
 			n = length;
 			s = s.substring(n);
 			break;
@@ -248,8 +249,8 @@ var script =
 //"echo -n $status >/mnt/term/env/rstatus >[2]/dev/null\n" +
 "echo -n hangup >/proc/$pid/notepg\n"
 				tlswrite("0000" + script.length + "\n" + script);
-//				document.getElementById('terminal').style.display = 'none';
-//				document.getElementById('buttons').innerHTML = '<input type="button" value="New Window" onclick="javascript:var line = \'hwin\'; var i; for (i = 0; i < line.length; i++) term.addchar(line.charCodeAt(i)); term.addchar(10); term.flush();"><input type="button" style="float:right;" value="Log Out" onclick="javascript:var line = \'exit\'; var i; for (i = 0; i < line.length; i++) term.addchar(line.charCodeAt(i)); term.addchar(10); term.flush();">';
+				document.getElementById('terminal').style.display = 'none';
+				document.getElementById('buttons').innerHTML = '<input type="button" value="New Window" onclick="javascript:var line = \'hwin\'; var i; for (i = 0; i < line.length; i++) term.addchar(line.charCodeAt(i)); term.addchar(13);"><input type="button" style="float:right;" value="Log Out" onclick="javascript:term.backlog = \'\'; term.consbuf = \'\'; term.unread = \'\'; for (i = 0; i < windows.length; i++) closeWindow(\'\' + escape(windows[i].id)); nwindows = 0; Nwindows = 0; terminals = {}; windows = []; conn.close();">';
 				break;
 			default:
 				fatal("invalid handshake message type: " + type);
