@@ -154,6 +154,7 @@ function startauth() {
 				if(!authdom)
 					fatal("dp9ik not available");
 				authpak_hash(authkey, str2arr(username));
+				authkey.aes = null;
 				break;
 			case 1:
 				state++;
@@ -287,8 +288,6 @@ function startauth() {
 				if (s.chal != cchal)
 					fatal("invalid challenge from server");
 				crand += s.nonce;
-				term.writeterminal('logged in\n');
-				term.flush();
 
 				authinfo.nsecret = 256;
 				authinfo.secret = new Uint8Array(256);
@@ -299,7 +298,7 @@ function startauth() {
 					authinfo.secret, authinfo.nsecret,
 					hmac_sha2_256, SHA2_256dlen);
 
-				oncpumsg = gottlshandshake;
+				oncpumsg = gottlsraw;
 				sec.psklen = authinfo.nsecret;
 				sec.psk.set(authinfo.secret, 0);
 				tlsClientHello();

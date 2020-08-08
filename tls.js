@@ -90,6 +90,8 @@ class tlsConn {
 					s = s.substring(5+len);
 					ndata -= len + 5;
 					continue;
+				} else if (type != 0x16 && type != 0x17) {
+					fatal("invalid tls record type");
 				}
 
 				if (len < 16)
@@ -168,7 +170,7 @@ function tlsrecsend(s, type) {
 	conn.send(out);
 }
 
-function tlshandshakerecv(s) {
+function tlsrecrecv(s) {
 	var rectype = ctob(s, 0);
 	var version = get16(s, 1);
 	var length = get16(s, 3);
@@ -228,6 +230,8 @@ function tlshandshakerecv(s) {
 				for (j = 0; j < n; j++)
 					if (s.charCodeAt(j) != verify[j])
 						fatal ("finished verification failed");
+				term.writeterminal('logged in\n');
+				term.flush();
 				break;
 			default:
 				fatal("invalid handshake message type: " + type);
@@ -484,8 +488,8 @@ function msgHash(p, n) {
 	sha2_256(p, n, 0, hsha2_256);
 }
 
-function gottlshandshake() {
-	var n = tlshandshakerecv(cpubuf);
+function gottlsraw() {
+	var n = tlsrecrecv(cpubuf);
 
 	cpubuf = cpubuf.substring(n);
 
