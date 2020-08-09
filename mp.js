@@ -82,8 +82,12 @@ function itomp(i) {
 	if (i < 0)
 		b.sign = -1;
 	i *= b.sign;
-	b.p[0] = i;
-	b.top = 1;
+	b.top = 0;
+	while(i > 0) {
+		b.p[b.top] = i & 0xFFFFFFFF;
+		b.top++;
+		i = Math.floor(i / 0x100000000);
+	}
 
 	return mpnorm(b);
 }

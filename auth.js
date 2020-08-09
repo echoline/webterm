@@ -82,6 +82,8 @@ function getlogin() {
 }
 
 function startauth() {
+	starttime = Date.now();
+
 	var authkey = {};
 
 	passtokey(authkey, str2arr(password));
