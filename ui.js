@@ -147,6 +147,12 @@ function newWindow(id, canclose) {
 
 	div.bg = document.createElement('div');
 	div.bg.setAttribute('class', 'bg');
+	div.bg.setAttribute('tabindex', '-1');
+	div.bg.onkeydown = function(evt) {
+		if(event.which == 46){
+			this.parentNode.terminal.addchar(127);
+		}
+	}
 
 	div.titleBar = document.createElement('div');
 	div.titleBar.div = div;
@@ -355,7 +361,7 @@ i				} catch(err) {
 			function(f, p) {
 				try {
 					var b = f.text.slice(0, p.offset);
-					var a = f.text.slice(p.offset, f.text.length - 1);
+					var a = f.text.slice(p.offset, f.text.length);
 					f.text = fromutf8(b + p.data + a);
 					respond(p, p.data.length);
 				} catch(err) {

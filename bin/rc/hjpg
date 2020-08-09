@@ -1,6 +1,17 @@
 #!/bin/rc
-if (~ $#* 1)
-	echo '<img style="max-width:100%; max-height:100%;" src="data:text/css;base64,'^`"{ enc64 < $1 }'^"/>' > /dev/innerHTML
+
+fn sigint {
+	echo -n > /dev/innerHTML
+	echo 'win('^$"id').terminal.focus()' > /dev/js
+}
+
+id=`{ cat /dev/winid }
+
+if (~ $#* 1) {
+	echo '<img style="max-width:100%; max-height:100%;" src="data:text/css;base64,'^`{ enc64 < $1 }^'"/>' > /dev/innerHTML
+	echo 'win('^$"id').bg.focus()' > /dev/js
+	cat
+}
 if not
 	echo usage: hjpg file.jpg
 
