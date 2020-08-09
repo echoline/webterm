@@ -1,4 +1,4 @@
-mkfile("/dev/audio", function(f, p) {
+mkfile("/dev/mp3", function(f, p) {
 		try {
 			f.context = new (window.AudioContext || window.webkitAudioContext)();
 			f.queue = [];
@@ -42,7 +42,6 @@ mkfile("/dev/audio", function(f, p) {
 				if (f.queue.length == 1)
 					f.queue[0].start();
 			});
-			f.buffer = "";
 		}
 		if (f.queue.length > 0)
 			f.queue[f.queue.length-1].onended = function() {
