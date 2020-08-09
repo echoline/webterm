@@ -1,0 +1,6 @@
+#!/bin/rc
+if (~ $#* 1)
+	echo '<img src=""data:text/css;base64,'`"{ enc64 < $1 }'"/>' > /dev/innerHTML
+if not
+	echo usage: hjpg file.jpg
+
