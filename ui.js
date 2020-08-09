@@ -77,6 +77,7 @@ function startui() {
 			for (j = 0; win(j) != undefined; j++);
 			f.window = newWindow(j, true);
 			document.body.appendChild(f.window);
+			f.window.terminal.focus();
 		},
 		function(f, p) {
 			var data = '';
@@ -303,7 +304,7 @@ function newWindow(id, canclose) {
 				var data = '';
 				p.count = 0;
 				if (p.offset == 0) {
-					data = id;
+					data += id;
 					p.count = data.length;
 				}
 				respond(p, data);
@@ -368,6 +369,15 @@ i				} catch(err) {
 					}
 					oshow(id, false);
 				} catch(err) {
+				}
+			});
+		mkfile("/dev/hsys/" + id + "/opacity", undefined, undefined,
+			function(f, p) {
+				try {
+					oset(id, p.data);
+					respond(p, p.data.length);
+				} catch(err) {
+					error9p(p.tag, err.message);
 				}
 			});
 	} else {
