@@ -52,6 +52,7 @@ function short() {
 
 class tlsConn {
 	constructor(ws) {
+		this.buf = "";
 		this.c = ws;
 		this.c.tls = this;
 		this.outseq = new Uint32Array(2);
@@ -64,14 +65,11 @@ class tlsConn {
 		this.inenc = setupChachastate(null, this.inkey, 32, this.iniv, 12, 20);
 
 		ws.onmessage = function(evt) {
-			var s = atob(evt.data);
-			cpubuf += s;
-			var ndata = s.length;
+			this.tls.buf += atob(evt.data);
+			var ndata = this.tls.buf.length;
 			if (ndata < 5)
 				return;
-			s = cpubuf;
-			cpubuf = "";
-			ndata = s.length;
+			var s = this.tls.buf;
 			while (ndata > 0) {
 				var type = ctob(s, 0);
 				var ver = get16(s, 1);
@@ -80,6 +78,9 @@ class tlsConn {
 				var iv = new Uint8Array(12);
 				var tag;
 				var i;
+
+				if (ndata < len)
+					return;
 
 				if (ver != ProtocolVersion)
 					fatal("incorrect protocol version in tls read");
@@ -118,6 +119,7 @@ class tlsConn {
 				ndata -= 5 + len + 16;
 				s = s.substring(5 + len + 16);
 			}
+			this.tls.buf = s;
 
 			if (oncpumsg)
 				while(cpubuf != "" && oncpumsg() > 0);

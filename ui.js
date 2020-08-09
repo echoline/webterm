@@ -86,6 +86,9 @@ function startui() {
 				p.count = data.length;
 			}
 			respond(p, data);
+		}, undefined,
+		function(f) {
+			closeWindow(f.window.id);
 		});
 }
 

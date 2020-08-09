@@ -2,6 +2,8 @@
 #include <libc.h>
 #include <thread.h>
 
+int newfd;
+
 void
 noteproc(void *arg) {
 	char buf[256];
@@ -36,24 +38,36 @@ noteproc(void *arg) {
 }
 
 void
+waitproc(void *arg)
+{
+	Waitmsg *msg = recvp((Channel*)arg);
+	free(msg);
+	close(newfd);
+	threadexitsall(nil);
+}
+
+void
 threadmain(int argc, char **argv) {
 	char *cmd = "/bin/rc";
 	char buf[256];
 	char winid[16];
 	int pid;
-	int fd;
 	int r;
 	Channel *cpid;
+	Channel *waitchan;
 
-	rfork(RFNAMEG|RFFDG|RFENVG);
+	r = rfork(RFNAMEG|RFFDG|RFENVG|RFPROC);
+	if (r == -1)
+		sysfatal("fork: %r");
+	if (r != 0)
+		exits(nil);
 	cpid = chancreate(sizeof(ulong), 0);
-	fd = open("/dev/hsys/new", OREAD);
-	if (fd < 0)
+	newfd = open("/dev/hsys/new", OREAD);
+	if (newfd < 0)
 		exits("open new");
-	if ((r = read(fd, winid, 15)) <= 0)
+	if ((r = read(newfd, winid, 15)) <= 0)
 		exits("read new");
 	winid[r] = '\0';
-	close(fd);
 	snprint(buf, 255, "/dev/hsys/%s", winid);
 	bind(buf, "/dev", MBEFORE|MCREATE);
 	close(0);
@@ -67,7 +81,9 @@ threadmain(int argc, char **argv) {
 		exits("open");	/* BUG? was terminate() */
 	}
 	dup(1, 2);
+	waitchan = threadwaitchan();
 	proccreate(noteproc, cpid, mainstacksize);
+	proccreate(waitproc, waitchan, mainstacksize);
 	procexec(cpid, cmd, argv);
 	sysfatal("exec: %r");
 }
