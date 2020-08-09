@@ -10,9 +10,9 @@ mkfile("/dev/audio", function(f, p) {
 	function(f, p) {
 		try {
 			f.buffer += p.data;
-			if (f.buffer.length > 8192) {
+			if (f.buffer.length > 65535) {
 				f.context.decodeAudioData(str2arr(f.buffer).buffer, function(buffer) {
-					var source = f.context.createBufferSource();
+					var source = new AudioBufferSourceNode(f.context);
 					source.buffer = buffer;
 					source.connect(f.context.destination);
 					source.onended = function() {
@@ -35,7 +35,7 @@ mkfile("/dev/audio", function(f, p) {
 	function(f, p) {
 		if (f.buffer.length > 0) {
 			f.context.decodeAudioData(str2arr(f.buffer).buffer, function(buffer) {
-				var source = f.context.createBufferSource();
+				var source = new AudioBufferSourceNode(f.context);
 				source.buffer = buffer;
 				source.connect(f.context.destination);
 				f.queue.push(source);
