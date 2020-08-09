@@ -416,8 +416,6 @@ function closeWindow(id) {
 
 	if (win != null) {
 		win.terminal.note("hangup");
-	//	rmfile("/dev/hsys/" + id + "/*");
-	//	rmfile("/dev/hsys/" + id);
 		document.body.removeChild(win);
 		window.nwindows--;
 	}
