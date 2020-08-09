@@ -413,9 +413,8 @@ function closeWindow(id) {
 	//	rmfile("/dev/hsys/" + id + "/*");
 	//	rmfile("/dev/hsys/" + id);
 		document.body.removeChild(win);
+		window.nwindows--;
 	}
-
-	window.nwindows--;
 }
 
 function hideWindow(id) {
