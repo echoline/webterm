@@ -2,11 +2,12 @@
 
 fn sigint {
 	echo -n > /dev/innerHTML
-	label $id
+	label $"l
 	echo 'win('^$id^').terminal.focus()' > /dev/js
 }
 
 id=`{ cat /dev/winid }
+l=`"{ cat /dev/label }
 
 if (~ $#* 1) {
 	{
@@ -18,7 +19,7 @@ if (~ $#* 1) {
 	echo '"/>'
 	} > /dev/innerHTML
 	label $1
-	echo 'win('^$id^').bg.focus()' > /dev/js
+	echo 'win('^$id^').titleBar.focus()' > /dev/js
 	cat
 }
 if not
