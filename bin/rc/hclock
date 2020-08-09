@@ -1,0 +1,13 @@
+#!/bin/rc
+
+fn sigint {
+	running=0
+	echo 'showWindow('''^`"{ cat /dev/winid }^''')' > /dev/js
+	label $"l
+}
+
+running=1
+l=`"{ cat /dev/label }
+echo 'hideWindow('''^`"{ cat /dev/winid }^''')' > /dev/js
+while(~ $running 1 && date > /dev/label) { sleep 1 }
+

@@ -1,3 +1,5 @@
+all:
+
 install:
-	cp himg youtube iframe opb /rc/bin
+	cp himg youtube iframe opb hclock /rc/bin
 
