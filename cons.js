@@ -5,15 +5,36 @@ function newTerminal() {
 	ta.setAttribute('spellcheck', 'false');
 	ta.style.width='100%';
 	ta.style.height='100%';
+	ta.onkeypress=function(event) {
+		event.inputType = 'insertText';
+		event.data = String.fromCharCode(event.which);
+		this.oninput(event);
+		event.preventDefault();
+		return false;
+	}
 	ta.onkeydown=function(event) {
 		if(event.which == 46){
-			this.addchar(127);
+			event.data = String.fromCharCode(127);
+			event.inputType = 'insertText';
+			this.oninput(event);
 			return false;
 		} else if(event.which >= 65 && event.which <= 91 && event.ctrlKey){
-			this.addchar(event.which - 64);
+			event.inputType = 'insertText';
+			event.data = String.fromCharCode(event.which - 64);
+			this.oninput(event);
 			return false;
-		} else if(event.which == 9 || event.which == 27) {
-			this.addchar(event.which);
+		} else if(event.which == 32 || event.which == 9 || event.which == 27) {
+			event.inputType = 'insertText';
+			event.data = String.fromCharCode(event.which);
+			this.oninput(event);
+			return false;
+		} else if(event.which == 8) {
+			event.inputType = 'deleteContentBackward';
+			this.oninput(event);
+			return false;
+		} else if(event.which == 10 || event.which == 13) {
+			event.inputType = 'insertLineBreak';
+			this.oninput(event);
 			return false;
 		}
 	}

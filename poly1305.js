@@ -160,7 +160,7 @@ function poly1305(m, len, key, klen, digest, s) {
 	for (i = 0; i < 4; i++)
 		h[i] = (h[i] >>> (i*6)) | (h[i+1] << (26 - i*6));
 
-	f = 0n;
+	f = itomp(0);
 	for (i = 0; i < 4; i++) {
 		tmp = mpnew(0);
 		mpright(f, 32, tmp);

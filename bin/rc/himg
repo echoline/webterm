@@ -9,19 +9,20 @@ fn sigint {
 id=`{ cat /dev/winid }
 l=`"{ cat /dev/label }
 
-if (~ $#* 1) {
-	{
+if (! ~ $#* 1) {
+	echo usage: himg file/url
+	exit
+}
+
+{
 	echo -n '<img style="max-width:100%; max-height:100%;" src="'
 	if (~ $1 http://* https://*)
 		echo -n $1
 	if not
 		echo -n 'data:text/css;base64,'^`{ enc64 < $1 }
 	echo '"/>'
-	} > /dev/innerHTML
-	label $1
-	echo 'win('^$id^').titleBar.focus()' > /dev/js
-	cat
-}
-if not
-	echo usage: himg file/url
+} > /dev/innerHTML
+label $1
+echo 'win('^$id^').titleBar.focus()' > /dev/js
+cat
 

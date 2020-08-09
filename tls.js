@@ -248,9 +248,8 @@ var script =
 "       bind -q /mnt/term/dev/cons /dev/cons\n" +
 "}\n" +
 "</dev/cons >/dev/cons >[2=1] service=cpu rc -li\n" +
-//"echo -n $status >/mnt/term/env/rstatus >[2]/dev/null\n" +
-"echo -n hangup >/proc/$pid/notepg\n"
-				tlswrite("0000" + script.length + "\n" + script);
+"echo -n hangup >/proc/$pid/notepg\n";
+				tlswrite("" + script.length + "\n" + script);
 				document.getElementById('terminal').style.display = 'none';
 				document.getElementById('buttons').innerHTML = '<input type="button" value="New Window" onclick="javascript:var line = \'hwin\'; var i; for (i = 0; i < line.length; i++) term.addchar(line.charCodeAt(i)); term.addchar(13);"><input type="button" style="float:right;" value="Log Out" onclick="javascript:term.backlog = \'\'; term.consbuf = \'\'; term.unread = \'\'; for (i = 0; i < windows.length; i++) closeWindow(\'\' + escape(windows[i].id)); nwindows = 0; Nwindows = 0; terminals = {}; windows = []; conn.close();">';
 				break;

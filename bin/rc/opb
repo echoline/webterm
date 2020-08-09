@@ -2,6 +2,6 @@
 
 l=`"{cat /dev/label}
 label opb
-hget http://stream1.opb.org/radio.mp3 > /dev/audio
+hget http://stream1.opb.org/radio.mp3 > /dev/mp3
 label $"l
 

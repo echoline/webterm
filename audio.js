@@ -10,7 +10,7 @@ mkfile("/dev/mp3", function(f, p) {
 	function(f, p) {
 		try {
 			f.buffer += p.data;
-			if (f.buffer.length > 65535) {
+			if (f.buffer.length > 0xFFFF) {
 				f.context.decodeAudioData(str2arr(f.buffer).buffer, function(buffer) {
 					var source = new AudioBufferSourceNode(f.context);
 					source.buffer = buffer;
