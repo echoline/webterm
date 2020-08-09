@@ -1,3 +1,0 @@
-#!/bin/rc
-
-echo 'video('^`"{ cat /dev/winid }^','''^$"*^''')' >> /dev/js

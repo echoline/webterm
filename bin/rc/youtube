@@ -1,7 +1,23 @@
 #!/bin/rc
 
-url=$"*
+fn sigint {
+	echo -n > /dev/innerHTML
+	label $id
+	echo 'win('^$id^').terminal.focus()' > /dev/js
+}
+
+id=`{ cat /dev/winid }
+
+if(! ~ $#* 1) {
+	echo usage: youtube url
+	exit
+}
+
+url=$1
+url=`{ echo $url | sed 's,//m.,//,' | sed 's,youtu.be,youtube.com/embed,' }
 url=`{ echo $url | sed 's,watch\?v=,embed/,' | sed 's,\&.*$,,' }
 
 echo '<iframe style="width:100%;height:100%;" src="'^$url^'" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>' > /dev/innerHTML
 label youtube
+echo 'win('^$id^').titleBar.focus()' > /dev/js
+cat

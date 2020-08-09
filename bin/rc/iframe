@@ -1,0 +1,19 @@
+#!/bin/rc
+
+fn sigint {
+	echo -n > /dev/innerHTML
+	label $id
+	echo 'win('^$id^').terminal.focus()' > /dev/js
+}
+
+if(! ~ $#* 1)
+	url=https://echoline.org
+if not
+	url=$1
+
+id=`{cat /dev/winid}
+
+label '<input type="text" value="'^$url^'" style="position:absolute; width:80%;" onkeydown="if(event.which==13){ win('^$id^').bg.getElementsByTagName(''iframe'')[0].src = this.value; };"/>'
+echo '<iframe src="'^$url^'" style="width:100%;height:100%;"></iframe>' > /dev/innerHTML
+echo 'win('^$id^').titleBar.focus()' > /dev/js
+cat

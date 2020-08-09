@@ -1,0 +1,3 @@
+install:
+	cp himg youtube iframe /rc/bin
+

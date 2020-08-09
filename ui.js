@@ -147,30 +147,26 @@ function newWindow(id, canclose) {
 
 	div.bg = document.createElement('div');
 	div.bg.setAttribute('class', 'bg');
-	div.bg.setAttribute('tabindex', '-1');
-	div.bg.onkeydown = function(evt) {
-		if(event.which == 46){
-			this.parentNode.terminal.addchar(127);
-		}
-	}
 
 	div.titleBar = document.createElement('div');
 	div.titleBar.div = div;
 	div.titleBar.setAttribute('class', 'title');
 	div.titleBar.innerHTML = '<span class="name">' + unescape(div.id) + '</span>';
+	div.titleBar.setAttribute('tabindex', '-1');
+	div.titleBar.onkeydown = function(event) {
+		if(event.which == 46){
+			this.div.terminal.addchar(127);
+		}
+	}
 
 	div.titleBar.onmousedown = function(event) {
 		dragStart(id, event.screenX, event.screenY);
-		
-		event.preventDefault();
-		return false;
+		this.focus();
 	}
 
 	div.titleBar.ontouchstart = function(event) {
 		dragStart(id, event.touches[0].screenX, event.touches[0].screenY);
-
-		event.preventDefault();
-		return false;
+		this.focus();
 	}
 
 	div.onmousedown = function(event) {
