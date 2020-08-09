@@ -367,7 +367,7 @@ i				} catch(err) {
 					if (f.mode & 1) {
 						win(id).bg.innerHTML = f.text;
 					}
-					oshow(id, false);
+					oshow(id, f.text.length? false: true);
 				} catch(err) {
 				}
 			});
