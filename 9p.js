@@ -51,7 +51,7 @@ function got9praw(s) {
 	packet = unpack(s.substring(0, header.size), t.fmt);
 	s = s.substring(header.size);
 	if(debug9p)
-		print("<- " + JSON.stringify(packet) + "\n");
+		term.print("<- " + JSON.stringify(packet) + "\n");
 	t.handler(packet);
 	return header.size;
 }
@@ -60,7 +60,7 @@ function send9p(p) {
 	p.size = 0;
 	p.size = pack(p, packets[p.type].fmt).length;
 	if(debug9p)
-		print("-> " + JSON.stringify(p) + " " + btoa(pack(p, packets[p.type].fmt)) + "\n");
+		term.print("-> " + JSON.stringify(p) + " " + btoa(pack(p, packets[p.type].fmt)) + "\n");
 	tlswrite(pack(p, packets[p.type].fmt));
 }
 

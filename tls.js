@@ -113,8 +113,8 @@ class tlsConn {
 				chacha_setiv(this.tls.inenc, iv);
 				if (ccpoly_decrypt(b, len, aad, 13, tag, this.tls.inenc) != 0)
 					fatal("tls decrypt error");
-				rec += arr2str(b.slice(0, len));
 
+				rec += arr2str(b.slice(0, len));
 				cpubuf += rec;
 				ndata -= 5 + len + 16;
 				s = s.substring(5 + len + 16);
