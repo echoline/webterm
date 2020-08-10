@@ -79,7 +79,7 @@ class tlsConn {
 				var tag;
 				var i;
 
-				if (ndata < len)
+				if (ndata < (len-5))
 					return;
 
 				if (ver != ProtocolVersion)

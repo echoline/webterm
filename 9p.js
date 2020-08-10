@@ -292,7 +292,10 @@ function mkdir(path) {
 		n = path[path.length - 1];
 		f.children[n] = {name: n, parent: f, children: {}, nchildren: [], qid: {type: QTDIR, ver: 0, path: ++lastqid}};
 		f.nchildren.push(f.children[n]);
+		f = f.children[n];
 	}
+
+	return f;
 }
 
 function mkfile(path, open, read, write, close) {
@@ -308,6 +311,8 @@ function mkfile(path, open, read, write, close) {
 	n = path[path.length - 1];
 	f.children[n] = {name: n, parent: f, qid: {type: 0, ver: 0, path: ++lastqid}, open: open, read: read, write: write, close: close};
 	f.nchildren.push(f.children[n]);
+
+	return f.children[n];
 }
 
 function rmfile(path) {

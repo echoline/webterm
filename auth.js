@@ -6,9 +6,10 @@ const AuthOK = ["i1:type","b124:Kc","b124:Ks"];
 const Authenticator = ["b8:chal","b32:nonce"];
 const Ticket = ["i1:num","b8:chal","b28:cuid","b28:suid","b32:key"];
 
+const AESKEYLEN = 16;
+
 var username;
 var password;
-var authinfo;
 var conn;
 var cpubuf;
 var oncpumsg;
@@ -89,7 +90,7 @@ function startauth() {
 	passtokey(authkey, str2arr(password));
 	password = null;
 
-	authinfo = {}
+	var authinfo = {}
 	cpubuf = "";
 
 	conn = newWebSocket("wss://echoline.org:8443/rcpu");
@@ -218,6 +219,7 @@ function startauth() {
 						if (authpak_finish(authpriv, authkey, str2arr(a.YBc)))
 							fatal("authpak_finish failed");
 
+						authpriv = null;
 						y = a.YBs;
 
 						a = {};
@@ -240,8 +242,10 @@ function startauth() {
 
 						if (form1M2B(aKc, aKc.length, authkey.pakkey) < 0)
 							authok = false;
+						authkey = null;
 						if (authok) {
 							a = unpack(arr2str(aKc), Ticket);
+							aKc = null;
 							if (a.chal != schal)
 								fatal("invalid challenge from auth server");
 
@@ -259,10 +263,13 @@ function startauth() {
 							conn.close();
 						} else {
 							conn.send(btoa(y));
+							y = null;
 							conn.send(btoa(Ks));
+							Ks = null;
 
 							a = {};
 							a.chal = schal;
+							schal = null;
 							a.nonce = crand;
 							a = str2arr(pack(a, Authenticator));
 							var b = new Uint8Array(68);
@@ -294,6 +301,7 @@ function startauth() {
 				s = unpack(arr2str(s.slice(1)), Authenticator);
 				if (s.chal != cchal)
 					fatal("invalid challenge from server");
+				cchal = null;
 				crand += s.nonce;
 
 				authinfo.nsecret = 256;
@@ -305,9 +313,13 @@ function startauth() {
 					authinfo.secret, authinfo.nsecret,
 					hmac_sha2_256, SHA2_256dlen);
 
+				nonce = null;
+				crand = null;
+
 				oncpumsg = gottlsraw;
 				sec.psklen = authinfo.nsecret;
 				sec.psk.set(authinfo.secret, 0);
+				authinfo = null;
 				tlsClientHello();
 				break;
 			default:

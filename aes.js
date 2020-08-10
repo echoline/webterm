@@ -1,1 +1,0 @@
-const AESKEYLEN = 16;
