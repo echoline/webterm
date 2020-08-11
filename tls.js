@@ -8,7 +8,6 @@ const HFinished = 20;
 const MaxRecLen = 1<<14;
 const MaxCipherRecLen = MaxRecLen + 2048;
 
-var tlsbuf = "";
 var verify = new Uint8Array(12);
 
 var sid;
@@ -17,6 +16,7 @@ var sec = {psk:new Uint8Array(256),psklen:256,
 	crandom:new Uint8Array(32),srandom:new Uint8Array(32)};
 var hsha2_256;
 var ninepbuf = "";
+var tlsstate;
 
 function btoc(b) {
 	return String.fromCharCode(b);
@@ -65,6 +65,7 @@ class tlsConn {
 		this.inenc = setupChachastate(null, this.inkey, 32, this.iniv, 12, 20);
 
 		ws.onmessage = function(evt) {
+			var retries = 0;
 			this.tls.buf += atob(evt.data);
 			var ndata = this.tls.buf.length;
 			if (ndata < 5)
@@ -108,7 +109,7 @@ class tlsConn {
 				for (i = 0; i < 8; i++)
 					iv[i+4] ^= aad[i];
 				chacha_setiv(this.tls.inenc, iv);
-				if (ccpoly_decrypt(b, len, aad, 13, tag, this.tls.inenc) != 0) {
+				while (ccpoly_decrypt(b, len, aad, 13, tag, this.tls.inenc) != 0 && retries < 5) {
 					// TODO: WTF?
 					this.tls.inseq[1]--;
 					if (this.tls.inseq[1] == 0xFFFFFFFF)
@@ -119,11 +120,13 @@ class tlsConn {
 					for (i = 0; i < 8; i++)
 						iv[i+4] ^= aad[i];
 					chacha_setiv(this.tls.inenc, iv);
-					if (ccpoly_decrypt(b, len, aad, 13, tag, this.tls.inenc) != 0)
-						fatal("tls decrypt error");
-				} else {
+					retries++;
+				}
+				if (retries == 0) {
 					rec += arr2str(b.slice(0, len));
 					cpubuf += rec;
+				} else if (retries == 5) {
+					fatal("tls decrypt error");
 				}
 
 				this.tls.inseq[1]++;
@@ -236,10 +239,16 @@ function tlsrecrecv(s) {
 
 			switch(type) {
 			case HServerHello:
+				if (tlsstate != 0)
+					fatal("out of order ServerHello");
+				tlsstate++;
 				if (tlsServerHello(s.substring(0, n)))
 					fatal("invalid tls message length");
 				break;
 			case HServerHelloDone:
+				if (tlsstate != 1)
+					fatal("out of order ServerHelloDone");
+				tlsstate++;
 				setMasterSecret(new Uint8Array(sec.psklen));
 				setSecrets();
 				tlsClientKeyExchange();
@@ -249,6 +258,9 @@ function tlsrecrecv(s) {
 				tlsSecFinished(verify, 0);
 				break;
 			case HFinished:
+				if (tlsstate != 2)
+					fatal("out of order Finished");
+				tlsstate++;
 				for (j = 0; j < n; j++)
 					if (s.charCodeAt(j) != verify[j])
 						fatal ("finished verification failed");
@@ -272,6 +284,8 @@ var script =
 			s = s.substring(n);
 			break;
 		case 0x17:
+			if (tlsstate != 3)
+				fatal("out of order application data");
 			n = i;
 			ninepbuf += s.substring(0, n);
 			s = s.substring(n);
@@ -309,10 +323,12 @@ function tlsClientHello() {
 	var p;
 	var sendp;
 	var s;
+	var tlsbuf = "";
 
 	hsha2_256 = newDigestState();
+	tlsstate = 0;
 
-	sendp = tlsbuf.length;
+	sendp = 0;
 	p = 0;
 	tlsbuf += btoc(HClientHello) + '\0\0\0';
 	p += 4;
@@ -331,12 +347,10 @@ function tlsClientHello() {
 	p++;
 
 	// ciphers
-	tlsbuf += put16(6);
+	tlsbuf += put16(2);
 	p += 2;
 	tlsbuf += put16(0xCCAB);
-	tlsbuf += put16(0x00AE);
-	tlsbuf += put16(0x008C);
-	p += 6;
+	p += 2;
 
 	// no compressors
 	tlsbuf += btoc(0x01) + btoc(0x00);
@@ -350,7 +364,6 @@ function tlsClientHello() {
 	msgHash(str2arr(tlsbuf.substring(sendp, sendp+p)), p);
 
 	tlshandshakesend(tlsbuf);
-	tlsbuf = "";
 }
 
 function tlsServerHello(s) {
@@ -418,8 +431,9 @@ function tlsClientKeyExchange() {
 	var sendp;
 	var s;
 	var pskid = "p9secret";
+	var tlsbuf = "";
 
-	sendp = tlsbuf.length;
+	sendp = 0;
 	p = 0;
 	tlsbuf += btoc(HClientKeyExchange) + '\0\0\0';
 	p += 4;
@@ -435,7 +449,6 @@ function tlsClientKeyExchange() {
 	msgHash(str2arr(tlsbuf.substring(sendp, sendp+p)), p);
 
 	tlshandshakesend(tlsbuf);
-	tlsbuf = "";
 }
 
 function tlsChangeCipher() {
