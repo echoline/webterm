@@ -29,57 +29,18 @@ function passtokey(key, pw) {
 	pbkdf2_x(pw, pw.length, salt, salt.length, 9001, key.aes, AESKEYLEN, hmac_sha1, SHA1dlen);
 }
 
+var loginerror = ""
 function getlogin() {
-	var termoninput = term.oninput;
+	username = null;
+	password = null;
 
-	username = "";
-	password = "";
+	document.getElementById("buttons").innerHTML = loginerror + '<form action="javascript: username = document.getElementsByName(\'username\')[0].value; password = document.getElementsByName(\'password\')[0].value; if (username.length != 0) { document.getElementById(\'buttons\').innerHTML = \'logging in...\'; startauth(); }; void(0);"><table><tr><td>username:</td><td><input type="text" name="username" onkeypress="javascript: if(event.which == 13 && document.getElementsByName(\'username\')[0].value.length != 0) { document.getElementsByName(\'password\')[0].focus(); event.preventDefault(); return false; }"/></td><td></td></tr><tr><td>password:</td><td><input type="password" name="password"/></td><td><input type="submit" value="log in"/></td></tr></table></form>';
 
-	term.writeterminal("username: ");
-	term.oninput = function(event) {
-		if (event.inputType == 'insertText') {
-			username += event.data;
-			termoninput(event);
-		}
-		else if (event.inputType == 'deleteContentBackward') {
-			username = username.substring(0, username.length-1);
-			termoninput(event);
-		}
-		else if (event.inputType == 'insertLineBreak') {
-			term.consbuf = "";
-			term.writeterminal(username);
-			if (username == "") {
-				term.writeterminal("\n");
-				username = "guest";
-				password = "gratisse";
-				term.oninput = termoninput;
-				startauth();
-				return false;
-			}
-			term.writeterminal("\npassword: ");
-			term.oninput = function(event) {
-				var i;
-				if (event.inputType == 'insertText') {
-					password += event.data;
-					termoninput(event);
-					for (i = 0; i < event.data.length; i++)
-						term.addchar(8);
-				}
-				else if (event.inputType == 'deleteContentBackward') {
-					password = password.substring(0, password.length-1);
-					term.addchar(8);
-				}
-				else if (event.inputType == 'insertLineBreak') {
-					term.writeterminal("\n");
-					term.oninput = termoninput;
-					startauth();
-				}
-				return false;
-			}
-			return false;
-		}
-		return false;
-	}
+	document.getElementsByName("username")[0].focus();
+}
+
+function logout() {
+	conn.close();
 }
 
 function startauth() {
@@ -102,8 +63,15 @@ function startauth() {
 	}
 	conn.onerror = fatal;
 	conn.onclose = function(event) {
-		document.getElementById("terminal").style.display = 'block';
-		document.getElementById("buttons").innerHTML = '';
+		var i;
+		for (i = 0; i < windows.length; i++)
+			if (windows[i])
+				closeWindow(windows[i].id);
+		nwindows = 0;
+		windows = [];
+		terminals = {};
+		dragging = false;
+		resizing = false;
 		getlogin();
 	}
 	conn.onopen = function(event) {
@@ -258,8 +226,7 @@ function startauth() {
 							}
 						}
 						if (!authok) {
-							term.writeterminal("password incorrect\n")
-
+							loginerror = "password incorrect<br/>";
 							conn.close();
 						} else {
 							conn.send(btoa(y));
@@ -293,7 +260,7 @@ function startauth() {
 				state++;
 				s = str2arr(s);
 				if (form1M2B(s, 68, str2arr(nonce)) < 0 || s[0] != AuthAs) {
-					term.writeterminal('incorrect password\n');
+					loginerror = "password incorrect<br/>";
 					conn.close();
 					break;
 				}

@@ -61,7 +61,6 @@ function startui() {
 	window.windows = [];
 	window.terminals = {};
 	window.nwindows = 0;
-	window.Nwindows = 0;
 
 	document.onmousemove = function(event) {
 		onmove(event.screenX, event.screenY);
@@ -134,17 +133,164 @@ function resizeStart(id, x, y) {
 
 function newWindow(id, canclose) {
 	var div = document.createElement('div');
-	window.windows.push(div);
-	window.nwindows++;
-	window.Nwindows++;
+	windows.push(div);
+	nwindows++;
 
 	div.id = id;
+	div.terminal = newTerminal();
+	terminals[id] = div.terminal;
+
+	mkdir("/dev/hsys/" + id);
+	mkfile("/dev/hsys/" + id + "/cons", undefined, function(f, p) {
+			try {
+				window.terminals[id].readterminal(p.count, function(l) {
+					respond(p, l);
+				}, p.tag);
+			} catch(err) {
+				error9p(p.tag, err.message);
+			}
+		},
+		function(f, p) {
+			try {
+				window.terminals[id].writeterminal(p.data); respond(p, -1);
+			} catch (err) {
+				error9p(p.tag, err.message);
+			}
+		});
+	mkfile("/dev/hsys/" + id + "/consctl", undefined, invalidop, function(f, p) {
+			try {
+				if(p.data.substr(0, 5) == "rawon")
+					window.terminals[id].rawmode = true;
+				else if(p.data.substr(0, 6) == "rawoff")
+					window.terminals[id].rawmode = false;
+				respond(p, -1);
+			} catch(err) {
+				error9p(p.tag, err.message);
+			}
+		},
+		function(f) {
+			try {
+				window.terminals[i].rawmode = false;
+			} catch(err) {
+				error9p(p.tag, err.message);
+			}
+		});
+	mkfile("/dev/hsys/" + id + "/cpunote", undefined, function(f, p) {
+			window.terminals[id].onnote.push(function(l) {
+				respond(p, l);
+			});
+		});
+	mkfile("/dev/hsys/" + id + "/label", undefined, function(f, p) {
+			try {
+				var data = '';
+				p.count = 0;
+				if (p.offset == 0) {
+					data = win(id).titleBar.getElementsByClassName('name')[0].innerHTML;
+					p.count = data.length;
+				}
+				respond(p, data);
+			} catch(err) {
+				error9p(p.tag, err.message);
+			}
+		},
+		function(f, p) {
+			try {
+				win(id).titleBar.getElementsByClassName('name')[0].innerHTML = fromutf8(p.data);
+				respond(p, -1);
+			} catch (err) {
+				error9p(p.tag, err.message);
+			}
+		});
+	mkfile("/dev/hsys/" + id + "/winid", undefined, function(f, p) {
+			var data = '';
+			p.count = 0;
+			if (p.offset == 0) {
+				data += id;
+				p.count = data.length;
+			}
+			respond(p, data);
+		});
+	mkfile("/dev/hsys/" + id + "/text", function(f, p) {
+			try {
+				f.text = window.terminals[id].value.slice(0, window.terminals[id].value.length - 2);
+			} catch(err) {
+				return err.message;
+			}
+		},
+		function(f, p) {
+			try {
+				var data = f.text;
+				var runlen = f.text.length - p.offset;
+				if (p.count > runlen)
+					p.count = runlen;
+				data = data.slice(p.offset, p.count);
+				data = toutf8(data);
+				respond(p, data);
+i			} catch(err) {
+				error9p(p.tag, err.message);
+			}
+		});
+	mkfile("/dev/hsys/" + id + "/innerHTML", function(f) {
+			try {
+				f.text = win(id).bg.innerHTML;
+				if (f.mode & 0x10)
+					f.text = "";
+			} catch(err) {
+				return err.message;
+			}
+		},
+		function(f, p) {
+			try {
+				var data = f.text;
+				var runlen = f.text.length - p.offset;
+				if (p.count > runlen) {
+					p.count = runlen;
+				}
+				data = data.slice(p.offset, p.count);
+				data = toutf8(data);
+				respond(p, data);
+			} catch(err) {
+				error9p(p.tag, err.message);
+			}
+		},
+		function(f, p) {
+			try {
+				var b = f.text.slice(0, p.offset);
+				var a = f.text.slice(p.offset, f.text.length);
+				f.text = fromutf8(b + p.data + a);
+				respond(p, p.data.length);
+			} catch(err) {
+				error9p(p.tag, err.message);
+			}
+		},
+		function(f) {
+			try {
+				if (f.mode & 1) {
+					win(id).bg.innerHTML = f.text;
+				}
+				oshow(id, f.text.length? false: true);
+			} catch(err) {
+			}
+		});
+	mkfile("/dev/hsys/" + id + "/opacity", undefined, undefined,
+		function(f, p) {
+			try {
+				oset(id, p.data);
+				respond(p, p.data.length);
+			} catch(err) {
+				error9p(p.tag, err.message);
+			}
+		});
+	div.terminal.div = div;
+	div.terminal.style.display = 'block';
+	div.termhidden = false;
+
 	div.setAttribute('class', 'window');
-	div.style.top = (window.nwindows * 10 + 10) + 'px';
-	div.style.left = (window.nwindows * 10 + 10) + 'px';
+	div.style.top = (id * 10 + 30) + 'px';
+	div.style.left = (id * 10 + 30) + 'px';
 	div.style.width = '640px';
 	div.style.height = '480px';
-	div.style.zIndex = window.nwindows;
+	div.style.zIndex = nwindows;
 
 	div.bg = document.createElement('div');
 	div.bg.div = div;
@@ -245,166 +391,6 @@ function newWindow(id, canclose) {
 	div.bottom.setAttribute('class', 'bottom');
 	div.bottom.appendChild(div.resizeHandle);
 
-	if (window.terminals[id] == undefined) {
-		div.terminal = newTerminal();
-		window.terminals[id] = div.terminal;
-
-		mkdir("/dev/hsys/" + id);
-		mkfile("/dev/hsys/" + id + "/cons", undefined, function(f, p) {
-				try {
-					window.terminals[id].readterminal(p.count, function(l) {
-						respond(p, l);
-					}, p.tag);
-				} catch(err) {
-					error9p(p.tag, err.message);
-				}
-			},
-			function(f, p) {
-				try {
-					window.terminals[id].writeterminal(p.data); respond(p, -1);
-				} catch (err) {
-					error9p(p.tag, err.message);
-				}
-			});
-		mkfile("/dev/hsys/" + id + "/consctl", undefined, invalidop, function(f, p) {
-				try {
-					if(p.data.substr(0, 5) == "rawon")
-						window.terminals[id].rawmode = true;
-					else if(p.data.substr(0, 6) == "rawoff")
-						window.terminals[id].rawmode = false;
-					respond(p, -1);
-				} catch(err) {
-					error9p(p.tag, err.message);
-				}
-			},
-			function(f) {
-				try {
-					window.terminals[i].rawmode = false;
-				} catch(err) {
-					error9p(p.tag, err.message);
-				}
-			});
-		mkfile("/dev/hsys/" + id + "/cpunote", undefined, function(f, p) {
-				window.terminals[id].onnote.push(function(l) {
-					respond(p, l);
-				});
-			});
-		mkfile("/dev/hsys/" + id + "/label", undefined, function(f, p) {
-				try {
-					var data = '';
-					p.count = 0;
-					if (p.offset == 0) {
-						data = win(id).titleBar.getElementsByClassName('name')[0].innerHTML;
-						p.count = data.length;
-					}
-					respond(p, data);
-				} catch(err) {
-					error9p(p.tag, err.message);
-				}
-			},
-			function(f, p) {
-				try {
-					win(id).titleBar.getElementsByClassName('name')[0].innerHTML = fromutf8(p.data);
-					respond(p, -1);
-				} catch (err) {
-					error9p(p.tag, err.message);
-				}
-			});
-		mkfile("/dev/hsys/" + id + "/winid", undefined, function(f, p) {
-				var data = '';
-				p.count = 0;
-				if (p.offset == 0) {
-					data += id;
-					p.count = data.length;
-				}
-				respond(p, data);
-			});
-		mkfile("/dev/hsys/" + id + "/text", function(f, p) {
-				try {
-					f.text = window.terminals[id].value.slice(0, window.terminals[id].value.length - 2);
-				} catch(err) {
-					return err.message;
-				}
-			},
-			function(f, p) {
-				try {
-					var data = f.text;
-					var runlen = f.text.length - p.offset;
-					if (p.count > runlen)
-						p.count = runlen;
-					data = data.slice(p.offset, p.count);
-					data = toutf8(data);
-					respond(p, data);
-i				} catch(err) {
-					error9p(p.tag, err.message);
-				}
-			});
-		mkfile("/dev/hsys/" + id + "/innerHTML", function(f) {
-				try {
-					f.text = win(id).bg.innerHTML;
-					if (f.mode & 0x10)
-						f.text = "";
-				} catch(err) {
-					return err.message;
-				}
-			},
-			function(f, p) {
-				try {
-					var data = f.text;
-					var runlen = f.text.length - p.offset;
-					if (p.count > runlen) {
-						p.count = runlen;
-					}
-					data = data.slice(p.offset, p.count);
-					data = toutf8(data);
-					respond(p, data);
-				} catch(err) {
-					error9p(p.tag, err.message);
-				}
-			},
-			function(f, p) {
-				try {
-					var b = f.text.slice(0, p.offset);
-					var a = f.text.slice(p.offset, f.text.length);
-					f.text = fromutf8(b + p.data + a);
-					respond(p, p.data.length);
-				} catch(err) {
-					error9p(p.tag, err.message);
-				}
-			},
-			function(f) {
-				try {
-					if (f.mode & 1) {
-						win(id).bg.innerHTML = f.text;
-					}
-					oshow(id, f.text.length? false: true);
-				} catch(err) {
-				}
-			});
-		mkfile("/dev/hsys/" + id + "/opacity", undefined, undefined,
-			function(f, p) {
-				try {
-					oset(id, p.data);
-					respond(p, p.data.length);
-				} catch(err) {
-					error9p(p.tag, err.message);
-				}
-			});
-	} else {
-		div.terminal = window.terminals[id];
-		div.terminal.value = "";
-		div.terminal.consbuf = "";
-		div.terminal.backlog = "";
-		div.terminal.unread = "";
-		div.terminal.online = [];
-		div.terminal.onnote = [];
-		div.terminal.rawmode = false;
-		div.terminal.holdmode = false;
-	}
-	div.terminal.div = div;
-	div.terminal.style.display = 'block';
-	div.termhidden = false;
-
 	div.appendChild(div.terminal);
 	div.appendChild(div.bg);
 	div.appendChild(div.titleBar);
@@ -416,12 +402,13 @@ i				} catch(err) {
 }
 
 function closeWindow(id) {
-	var win = document.getElementById(id);
+	var w = document.getElementById(id);
 
-	if (win != null) {
-		win.terminal.note("hangup");
-		document.body.removeChild(win);
-		window.nwindows--;
+	if (w != null) {
+		w.terminal.note("hangup");
+		document.body.removeChild(w);
+		rmfile("/dev/hsys/" + id);
+		nwindows--;
 	}
 }
 

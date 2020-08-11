@@ -101,21 +101,35 @@ class tlsConn {
 				len -= 16;
 
 				var rec = s.substring(0, 3) + put16(len);
-				var aad = str2arr(put16((this.tls.inseq[0] >>> 16) & 0xFFFF) + put16(this.tls.inseq[0] & 0xFFFF) + put16((this.tls.inseq[1] >>> 16) & 0xFFFF) + put16(this.tls.inseq[1] & 0xFFFF) + s.substring(0, 3) + put16(len));
-				this.tls.inseq[1]++;
-				if (this.tls.inseq[1] == 0)
-					this.tls.inseq[0]++;
-
 				tag = b.slice(len, len+16);
+
+				var aad = str2arr(put16((this.tls.inseq[0] >>> 16) & 0xFFFF) + put16(this.tls.inseq[0] & 0xFFFF) + put16((this.tls.inseq[1] >>> 16) & 0xFFFF) + put16(this.tls.inseq[1] & 0xFFFF) + s.substring(0, 3) + put16(len));
 				iv.set(this.tls.iniv, 0);
 				for (i = 0; i < 8; i++)
 					iv[i+4] ^= aad[i];
 				chacha_setiv(this.tls.inenc, iv);
-				if (ccpoly_decrypt(b, len, aad, 13, tag, this.tls.inenc) != 0)
-					fatal("tls decrypt error");
+				if (ccpoly_decrypt(b, len, aad, 13, tag, this.tls.inenc) != 0) {
+					// TODO: WTF?
+					this.tls.inseq[1]--;
+					if (this.tls.inseq[1] == 0xFFFFFFFF)
+						this.tls.inseq[0]--;
 
-				rec += arr2str(b.slice(0, len));
-				cpubuf += rec;
+					aad = str2arr(put16((this.tls.inseq[0] >>> 16) & 0xFFFF) + put16(this.tls.inseq[0] & 0xFFFF) + put16((this.tls.inseq[1] >>> 16) & 0xFFFF) + put16(this.tls.inseq[1] & 0xFFFF) + s.substring(0, 3) + put16(len));
+					iv.set(this.tls.iniv, 0);
+					for (i = 0; i < 8; i++)
+						iv[i+4] ^= aad[i];
+					chacha_setiv(this.tls.inenc, iv);
+					if (ccpoly_decrypt(b, len, aad, 13, tag, this.tls.inenc) != 0)
+						fatal("tls decrypt error");
+				} else {
+					rec += arr2str(b.slice(0, len));
+					cpubuf += rec;
+				}
+
+				this.tls.inseq[1]++;
+				if (this.tls.inseq[1] == 0)
+					this.tls.inseq[0]++;
+
 				ndata -= 5 + len + 16;
 				s = s.substring(5 + len + 16);
 			}
@@ -250,8 +264,7 @@ var script =
 "</dev/cons >/dev/cons >[2=1] service=cpu rc -li\n" +
 "echo -n hangup >/proc/$pid/notepg\n";
 				tlswrite("" + script.length + "\n" + script);
-				document.getElementById('terminal').style.display = 'none';
-				document.getElementById('buttons').innerHTML = '<input type="button" value="New Window" onclick="javascript:var line = \'hwin\'; var i; for (i = 0; i < line.length; i++) term.addchar(line.charCodeAt(i)); term.addchar(13);"><input type="button" style="float:right;" value="Log Out" onclick="javascript:term.backlog = \'\'; term.consbuf = \'\'; term.unread = \'\'; for (i = 0; i < windows.length; i++) closeWindow(\'\' + escape(windows[i].id)); nwindows = 0; Nwindows = 0; terminals = {}; windows = []; conn.close();">';
+				document.getElementById('buttons').innerHTML = '<input type="button" value="new window" onclick="javascript:var line = \'hwin\'; var i; for (i = 0; i < line.length; i++) term.addchar(line.charCodeAt(i)); term.addchar(13);"><input type="button" style="float:right;" value="log out" onclick="javascript:logout();">';
 				break;
 			default:
 				fatal("invalid handshake message type: " + type);
