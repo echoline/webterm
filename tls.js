@@ -109,23 +109,22 @@ class tlsConn {
 				for (i = 0; i < 8; i++)
 					iv[i+4] ^= aad[i];
 				chacha_setiv(this.tls.inenc, iv);
-				while (ccpoly_decrypt(b, len, aad, 13, tag, this.tls.inenc) != 0 && retries < 5) {
+				while (ccpoly_decrypt(b, len, aad, 13, tag, this.tls.inenc) != 0 && retries < 100) {
+					retries++;
+
 					// TODO: WTF?
-					this.tls.inseq[1]--;
-					if (this.tls.inseq[1] == 0xFFFFFFFF)
-						this.tls.inseq[0]--;
+					this.tls.inseq[1] += (retries & 1? -1: 1) * retries;
 
 					aad = str2arr(put16((this.tls.inseq[0] >>> 16) & 0xFFFF) + put16(this.tls.inseq[0] & 0xFFFF) + put16((this.tls.inseq[1] >>> 16) & 0xFFFF) + put16(this.tls.inseq[1] & 0xFFFF) + s.substring(0, 3) + put16(len));
 					iv.set(this.tls.iniv, 0);
 					for (i = 0; i < 8; i++)
 						iv[i+4] ^= aad[i];
 					chacha_setiv(this.tls.inenc, iv);
-					retries++;
 				}
-				if (retries == 0) {
+				if (!retries) {
 					rec += arr2str(b.slice(0, len));
 					cpubuf += rec;
-				} else if (retries == 5) {
+				} else if (retries == 100) {
 					fatal("tls decrypt error");
 				}
 

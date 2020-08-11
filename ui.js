@@ -75,7 +75,7 @@ function startui() {
 			var j;
 			for (j = 0; win(j) != undefined; j++);
 			f.window = newWindow(j, true);
-			mkdrawfiles(j);
+			mkdrawfiles(f.window);
 			document.body.appendChild(f.window);
 			f.window.terminal.focus();
 		},
@@ -296,10 +296,8 @@ i			} catch(err) {
 	div.bg.div = div;
 	div.bg.setAttribute('class', 'bg');
 	div.bg.setAttribute('tabindex', '-1');
-	div.bg.onkeydown = function(event) {
-		if(event.which == 46){
-			this.div.terminal.addchar(127);
-		}
+	div.bg.onkeydown = function (event) {
+		div.terminal.onkeydown(event);
 	}
 
 	div.titleBar = document.createElement('div');
@@ -442,27 +440,27 @@ function showWindow(id) {
 
 function resizeCompute(div) {
 	var width = div.style.width.replace(/px$/, '');
-	var height = div.style.height.replace(/px$/, '');
+	var height = div.style.height.replace(/px$/, '') - 30;
 	var f, n;
 
 	div.titleBar.style.width = width + 'px';
 	div.terminal.style.width = width + 'px';
-	div.terminal.style.height = (height - 30) + 'px';
+	div.terminal.style.height = height + 'px';
 	div.bg.style.width = width + 'px';
-	div.bg.style.height = (height - 30) + 'px';
+	div.bg.style.height = height + 'px';
 
 	try {
 		f = lookupfile("/dev/hsys/" + div.id + "/draw/new", 1);
 		if (f.draw.nctl > 0) {
-			f.draw.canvas.height = height - 30;
+			f.draw.canvas.height = height;
 			f.draw.canvas.width = width;
 			f.draw.disp.r[2] = width;
-			f.draw.disp.r[3] = height - 30;
-			f.draw.disp.clipr = f.draw.disp.r.concat([]);
-/*			f.draw.refresh = [0].concat(f.draw.disp.r);
-			n = f.draw.onrefresh.length;
-			while (n--)
-				f.draw.onrefresh.shift()(); */
+			f.draw.disp.r[3] = height;
+			f.draw.disp.clipr = f.draw.disp.r;
+			f.draw.resize = 1;
+			f.draw.mouse = [width, height, 0, new Date().getTime() - draw.starttime];
+			while(f.draw.onmouse.length != 0)
+				f.draw.onmouse.shift()();
 		}
 	} catch(e) {
 	}

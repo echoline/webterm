@@ -37,6 +37,22 @@ function offset(r, p) {
 	return [r[0] + p[0], r[1] + p[1], r[2] + p[0], r[3] + p[1]];
 }
 
+function chantodepth(c) {
+	var n;
+
+	c = str2arr(c);
+	c = c[0] | c[1] << 8 | c[2] << 16 | c[3] << 24;
+
+	for (n = 0; c; c >>>= 8) {
+		if (((c>>>4)&15) >= 7 || (c&15) > 8 || (c&15) <= 0)
+			throw "invalid chan";
+		n += (c&15);
+	}
+	if (n == 0 || (n > 8 && n % 8) || (n < 8 && 8 % n))
+		throw "invalid chan";
+	return n;
+}
+
 function allocimg(rect, fill, repl) {
 	i = {r: rect, clipr: rect.concat([]), repl: repl};
 	i.canvas = document.createElement("canvas");
