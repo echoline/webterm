@@ -132,6 +132,7 @@ function resizeStart(id, x, y) {
 }
 
 function newWindow(id, canclose) {
+	var i;
 	var div = document.createElement('div');
 	windows.push(div);
 	nwindows++;
@@ -139,6 +140,14 @@ function newWindow(id, canclose) {
 	div.id = id;
 	div.terminal = newTerminal();
 	terminals[id] = div.terminal;
+
+	div.bg = document.createElement('div');
+	div.bg.div = div;
+	div.bg.setAttribute('class', 'bg');
+	div.bg.setAttribute('tabindex', '-1');
+	div.bg.onkeydown = function (event) {
+		div.terminal.onkeydown(event);
+	}
 
 	mkdir("/dev/hsys/" + id);
 	mkfile("/dev/hsys/" + id + "/cons", undefined, function(f, p) {
@@ -160,9 +169,9 @@ function newWindow(id, canclose) {
 	mkfile("/dev/hsys/" + id + "/consctl", undefined, invalidop, function(f, p) {
 			try {
 				if(p.data.substr(0, 5) == "rawon")
-					window.terminals[id].rawmode = true;
+					terminals[id].rawmode = true;
 				else if(p.data.substr(0, 6) == "rawoff")
-					window.terminals[id].rawmode = false;
+					terminals[id].rawmode = false;
 				respond(p, -1);
 			} catch(err) {
 				error9p(p.tag, err.message);
@@ -170,13 +179,13 @@ function newWindow(id, canclose) {
 		},
 		function(f) {
 			try {
-				window.terminals[i].rawmode = false;
+				terminals[i].rawmode = false;
 			} catch(err) {
 				error9p(p.tag, err.message);
 			}
 		});
 	mkfile("/dev/hsys/" + id + "/cpunote", undefined, function(f, p) {
-			window.terminals[id].onnote.push(function(l) {
+			terminals[id].onnote.push(function(l) {
 				respond(p, l);
 			});
 		});
@@ -230,9 +239,19 @@ i			} catch(err) {
 				error9p(p.tag, err.message);
 			}
 		});
+	mkfile("/dev/hsys/" + id + "/opacity", undefined, undefined,
+		function(f, p) {
+			try {
+				oset(id, p.data);
+				respond(p, p.data.length);
+			} catch(err) {
+				error9p(p.tag, err.message);
+			}
+		});
+	mkdir("/dev/hsys/" + id + "/dom");
 	mkfile("/dev/hsys/" + id + "/innerHTML", function(f) {
 			try {
-				f.text = win(id).bg.innerHTML;
+				f.text = div.bg.innerHTML;
 				if (f.mode & 0x10)
 					f.text = "";
 			} catch(err) {
@@ -255,9 +274,7 @@ i			} catch(err) {
 		},
 		function(f, p) {
 			try {
-				var b = f.text.slice(0, p.offset);
-				var a = f.text.slice(p.offset, f.text.length);
-				f.text = fromutf8(b + p.data + a);
+				f.text = f.text.replaceAt(p.offset, p.data);
 				respond(p, p.data.length);
 			} catch(err) {
 				error9p(p.tag, err.message);
@@ -266,21 +283,18 @@ i			} catch(err) {
 		function(f) {
 			try {
 				if (f.mode & 1) {
-					win(id).bg.innerHTML = f.text;
+					div.bg.innerHTML = f.text;
+					oshow(div.id, f.text.length? false: true);
+					mkdir("/dev/hsys/" + id + "/dom");
+					for (i = 0; i < div.bg.children.length; i++) {
+						mkdir("/dev/hsys/" + div.id + "/dom/" + i);
+						mkdomchildren("/dev/hsys/" + div.id + "/dom/" + i, div.bg.children[i]);
+					}
 				}
-				oshow(id, f.text.length? false: true);
 			} catch(err) {
 			}
 		});
-	mkfile("/dev/hsys/" + id + "/opacity", undefined, undefined,
-		function(f, p) {
-			try {
-				oset(id, p.data);
-				respond(p, p.data.length);
-			} catch(err) {
-				error9p(p.tag, err.message);
-			}
-		});
+
 	div.terminal.div = div;
 	div.terminal.style.display = 'block';
 	div.termhidden = false;
@@ -291,14 +305,6 @@ i			} catch(err) {
 	div.style.width = '640px';
 	div.style.height = '510px';
 	div.style.zIndex = nwindows;
-
-	div.bg = document.createElement('div');
-	div.bg.div = div;
-	div.bg.setAttribute('class', 'bg');
-	div.bg.setAttribute('tabindex', '-1');
-	div.bg.onkeydown = function (event) {
-		div.terminal.onkeydown(event);
-	}
 
 	div.titleBar = document.createElement('div');
 	div.titleBar.div = div;
@@ -461,6 +467,71 @@ function resizeCompute(div) {
 				f.draw.onmouse.shift()();
 		}
 	} catch(e) {
+	}
+}
+
+function mkdomchildren(path, element) {
+	var i;
+
+	mkfile(path + "/innerHTML", function(f) {
+			try {
+				f.text = element.innerHTML;
+				if (f.mode & 0x10)
+					f.text = "";
+			} catch(err) {
+				return err.message;
+			}
+		},
+		function(f, p) {
+			try {
+				var data = f.text;
+				var runlen = f.text.length - p.offset;
+				if (p.count > runlen) {
+					p.count = runlen;
+				}
+				data = data.slice(p.offset, p.count);
+				data = toutf8(data);
+				respond(p, data);
+			} catch(err) {
+				error9p(p.tag, err.message);
+			}
+		},
+		function(f, p) {
+			try {
+				f.text = f.text.replaceAt(p.offset, p.data);
+				respond(p, p.data.length);
+			} catch(err) {
+				error9p(p.tag, err.message);
+			}
+		},
+		function(f) {
+			try {
+				if (f.mode & 1) {
+					element.innerHTML = f.text;
+					mkdomchildren(path, element);
+				}
+			} catch(err) {
+			}
+		});
+
+	mkfile(path + "/type", undefined, function(f, p) {
+		respond(p, element.nodeName.substring(p.offset, p.offset+p.count));
+	});
+
+	mkdir(path + "/attributes");
+	for (i = 0; i < element.attributes.length; i++) {
+		var name = element.attributes[i].name;
+		var f = mkfile(path + "/attributes/" + name, undefined, function(f, p) {
+			var value = f.f.element.attributes[f.f.name].value;
+			respond(p, value.substring(p.offset, p.offset + p.count));
+		})
+		f.element = element;
+	}
+
+	mkdir(path + "/children");
+	for (i = 0; i < element.children.length; i++) {
+		mkdir(path + "/children/" + i);
+		mkdomchildren(path + "/children/" + i, element.children[i]);
 	}
 }
 
