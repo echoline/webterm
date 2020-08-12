@@ -75,7 +75,6 @@ function startui() {
 			var j;
 			for (j = 0; win(j) != undefined; j++);
 			f.window = newWindow(j, true);
-			//mkdrawfiles(f.window);
 			document.body.appendChild(f.window);
 			f.window.terminal.focus();
 		},

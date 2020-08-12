@@ -1,0 +1,13 @@
+#!/bin/rc
+
+if (! ~ $#* 1 || test ! -f $"1) {
+	echo usage: download filename
+	exit
+}
+
+name=`{basename $"1}
+{
+	echo $"name
+	cat $"1
+} > /dev/download
+
