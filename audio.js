@@ -23,7 +23,12 @@ mkfile("/dev/mp3", function(f, p) {
 				source.buffer = buffer;
 				source.connect(f.context.destination);
 				source.prestart = function() {
-					respond(p, -1);
+					if (f.open)
+						respond(p, -1);
+					else if (f.queue.length == 1)
+						source.onended = function() {
+							f.context.close();
+						}
 				}
 				source.onended = function() {
 					f.queue.shift();
@@ -39,13 +44,15 @@ mkfile("/dev/mp3", function(f, p) {
 				}
 				f.buffer = f.buffer.substring(l);
 			}).catch(function(err) {
-				error9p(p.tag, err);
+				if (f.open)
+					error9p(p.tag, err.message);
 				f.buffer = "";
 			});
 		} else if (f.buffer.length >= 0x20000) {
-			error9p(p.tag, "not valid mp3 data");
+			if (f.open)
+				error9p(p.tag, "not valid mp3 data");
 			f.buffer = "";
-		} else 
+		} else if (f.open)
 			respond(p, -1);
 	},
 	function(f, p) {

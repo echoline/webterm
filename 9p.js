@@ -122,6 +122,7 @@ function Twalk(p) {
 function Tclunk(p) {
 	if(fids[p.fid].open == true && fids[p.fid].f.close != undefined)
 		fids[p.fid].f.close(fids[p.fid]);
+	fids[p.fid].open = false;
 	fids[p.fid] = undefined;
 	send9p({type: msgtype.Rclunk, tag: p.tag});
 }
