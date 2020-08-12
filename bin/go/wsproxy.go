@@ -11,17 +11,17 @@ import (
 	"net/http"
 )
 
-var authsrv = flag.String("a", "cloud9.echoline.org:567", "auth server to proxy to")
-var rcpusrv = flag.String("c", "cloud9.echoline.org:17019", "rcpu server to proxy to")
+var authsrv = flag.String("a", "localhost:567", "auth server to proxy to")
+var rcpusrv = flag.String("c", "localhost:17019", "rcpu server to proxy to")
 
-var listen = flag.String("l", ":8443", "websocket server bind address")
+var listen = flag.String("l", ":8000", "websocket server bind address")
 
 func main() {
 	flag.Parse()
 
 	http.Handle("/auth", websocket.Handler(func(ws *websocket.Conn) { wsHandler(ws, *authsrv) }))
 	http.Handle("/rcpu", websocket.Handler(func(ws *websocket.Conn) { wsHandler(ws, *rcpusrv) }))
-	if err := http.ListenAndServeTLS(*listen, "server.crt", "server.key", nil); err != nil {
+	if err := http.ListenAndServe(*listen, nil); err != nil {
 		log.Fatal(err)
 	}
 }

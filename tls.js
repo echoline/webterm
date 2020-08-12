@@ -64,9 +64,9 @@ class tlsConn {
 		this.outenc = setupChachastate(null, this.outkey, 32, this.outiv, 12, 20);
 		this.inenc = setupChachastate(null, this.inkey, 32, this.iniv, 12, 20);
 
-		ws.onmessage = function(evt) {
+		ws.onmessage = function(event) {
 			var retries = 0;
-			this.tls.buf += atob(evt.data);
+			this.tls.buf += atob(event.data);
 			var ndata = this.tls.buf.length;
 			if (ndata < 5)
 				return;
@@ -80,8 +80,8 @@ class tlsConn {
 				var tag;
 				var i;
 
-				if (ndata < (len-5))
-					return;
+				if (ndata < (len+5))
+					break;
 
 				if (ver != ProtocolVersion)
 					fatal("incorrect protocol version in tls read");

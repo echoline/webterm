@@ -153,3 +153,37 @@ function memdraw(dst, r, src, sp, mask, mp, op) {
 	dst.ctx.putImageData(d, 0, 0);
 }
 
+function memfillimage(im, r, data) {
+	var i, j, k, l;
+	var d = im.ctx.getImageData(0, 0, im.canvas.width, im.canvas.height);
+
+	k = 0;
+	if (im.depth == 24) {
+		for(i = r[1]; i < r[3]; i++)
+			for(j = r[0]; j < r[2]; j++)
+				for(l = 0; l < 3; l++)
+					d.data[4 * (im.canvas.width * i + j) + l] = data[k++];
+	} else if (im.depth == 8) {
+		for(i = r[1]; i < r[3]; i++)
+			for(j = r[0]; j < r[2]; j++) {
+				for(l = 0; l < 3; l++)
+					d.data[4 * (im.canvas.width * i + j) + l] = data[k];
+				k++;
+			}
+	} else if (im.depth == 1) {
+		b = 0;
+		for(i = r[1]; i < r[3]; i++)
+			for(j = r[0]; j < r[2]; j++) {
+				for(l = 0; l < 3; l++)
+					d.data[4 * (im.canvas.width * i + j) + l] = ((data[k] >> b) & 1)? 0xFF: 0x00;
+				b++;
+				if (b == 8) {
+					b = 0;
+					k++;
+				}
+			}
+	}
+
+	im.ctx.putImageData(d, 0, 0);
+}
+

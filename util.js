@@ -1,6 +1,11 @@
 function fatal(msg) {
-	conn.close();
-	throw msg;
+	loginerror = msg + "<br/>";
+	try {
+		conn.close();
+	} catch (e) {
+		getlogin();
+	}
+	//throw msg;
 }
 
 function zerobytes(n) {

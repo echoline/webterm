@@ -8,7 +8,7 @@ const drawmsg = {
 	F: {fmt: ["i4:id"], handler: drawscreenfree, size: 4},
 	f: {fmt: ["i4:id"], handler: drawfree, size: 4},
 	L: {fmt: ["i4:dstid", "b8:p0", "b8:p1", "i4:end0", "i4:end1", "i4:thick", "i4:srcid", "b8:sp"], handler: drawline, size: 44},
-	N: {fmt: ["i4:dstid", "i1:in", "S1:n"], handler: drawsetname, size: 6},
+	N: {fmt: ["i4:id", "i1:in", "S1:n"], handler: drawsetname, size: 6},
 	n: {fmt: ["i4:id", "S1:n"], handler: drawname, size: 5},
 	v: {fmt: [], handler: drawflush, size: 0},
 	s: {fmt: ["i4:dstid", "i4:srcid", "i4:fontid", "b8:dstp", "b16:clipr", "b8:srcp", "i2:ni"], handler: drawstring, size: 46},
@@ -52,10 +52,10 @@ function newconn(draw) {
 }, drawctlread, undefined, function(f) {
 		draw.nctl--;
 		if (draw.nctl == 0) {
-			mkdrawfiles(winid);
 			win(winid).bg.innerHTML = '';
 			oshow(winid, true);
 			win(winid).terminal.focus();
+			draw.conns[f.f.parent.id].used = false;
 		}
 }).draw = draw;
 	mkfile("/dev/hsys/" + winid + "/draw/" + i + "/data", undefined, invalidop, drawdatawrite).draw = draw;
@@ -96,14 +96,13 @@ function drawnewopen(f) {
 		draw.disp.r[2] = draw.canvas.width;
 		draw.disp.r[3] = draw.canvas.height;
 		draw.disp.clipr = [].concat(draw.disp.r);
-		oshow(draw.winid, false);
 		win(draw.winid).bg.innerHTML = '';
 		win(draw.winid).bg.appendChild(draw.canvas);
 		win(draw.winid).bg.focus();
 		draw.nctl++;
 		f.f = lookupfile("/dev/hsys/" + draw.winid + "/draw/" + newconn(draw).id + "/ctl", true);
+		oshow(draw.winid, false);
 	} catch(err) {
-		oshow(draw.winid, true);
 		return err.message;
 	}
 	return "";
@@ -148,7 +147,6 @@ function drawrefreshread(f, p) {
 function drawdatawrite(f, p) {
 	var t, s, m, i;
 	var conns = f.f.draw.conns;
-	var err = "";
 
 	i = 0;
 	while (i < p.data.length) {
@@ -278,25 +276,17 @@ function drawload(c, p) {
 	im = c.imgs[p.id];
 	if(im == undefined) return "id + " + p.id + " not in use";
 	r = runpack(p.r);
-	d = im.ctx.getImageData(0, 0, im.canvas.width, im.canvas.height);
-	k = 0;
-	for(i = r[1]; i < r[3]; i++)
-		for(j = r[0]; j < r[2]; j++)
-			for(l = 0; l < 3; l++)
-				d.data[4 * (im.canvas.width * i + j) + l] = p.buf[k++];
 
-	im.ctx.putImageData(d, 0, 0);
+	memfillimage(im, r, p.buf);
 }
 
 function drawcload(c, p) {
-	var im, d, r, bpl, cnt, offs, y, data;
+	var im, r, bpl, cnt, offs, y, data;
 	var line, end, u, depth, c, mem, memp, omemp, buf;
-	var i, j, k, l, b;
 
 	im = c.imgs[p.id];
 	if(im == undefined) return "id + " + p.id + " not in use";
 	r = runpack(p.r);
-	d = im.ctx.getImageData(0, 0, im.canvas.width, im.canvas.height);
 	bpl = Math.floor((im.depth * rw(r) + 8 - 1) / 8);
 	data = new Uint8Array(bpl * rh(r));
 	y = 0;
@@ -348,36 +338,7 @@ function drawcload(c, p) {
 		}
 	}
 
-	k = 0;
-	if (im.depth == 24) {
-		for(i = r[1]; i < r[3]; i++)
-			for(j = r[0]; j < r[2]; j++)
-				for(l = 0; l < 3; l++)
-					d.data[4 * (im.canvas.width * i + j) + l] = data[k++];
-	} else if (im.depth == 8) {
-		for(i = r[1]; i < r[3]; i++)
-			for(j = r[0]; j < r[2]; j++) {
-				for(l = 0; l < 3; l++)
-					d.data[4 * (im.canvas.width * i + j) + l] = data[k];
-				k++;
-			}
-	} else if (im.depth == 1) {
-		b = 0;
-		for(i = r[1]; i < r[3]; i++)
-			for(j = r[0]; j < r[2]; j++) {
-				for(l = 0; l < 3; l++)
-					d.data[4 * (im.canvas.width * i + j) + l] = ((data[k] >> b) & 1)? 0xFF: 0x00;
-				b++;
-				if (b == 8) {
-					b = 0;
-					k++;
-				}
-			}
-	} else {
-		term.writeterminal("depth is " + im.depth + " in cload\n");
-	}
-
-	im.ctx.putImageData(d, 0, 0);
+	memfillimage(im, r, data);
 }
 
 function drawstring(c, p) {
@@ -430,10 +391,10 @@ function mousechange(draw, k, e) {
 	var c, n;
 
 	c = draw.canvas.parentNode.parentNode;
-	draw.mouse = [e.clientX - c.offsetLeft, e.clientY - c.offsetTop-30, draw.mouse[2], new Date().getTime() - draw.starttime];
+	draw.mouse = ['m', e.clientX - c.offsetLeft, e.clientY - c.offsetTop-30, draw.mouse[3], new Date().getTime() - draw.starttime];
 	switch(k){
-	case 1: draw.mouse[2] |= (1<<e.button); break;
-	case 2: draw.mouse[2] &= ~(1<<e.button); break;
+	case 1: draw.mouse[3] |= (1<<e.button); break;
+	case 2: draw.mouse[3] &= ~(1<<e.button); break;
 	}
 	n = draw.onmouse.length;
 	while(n--)
@@ -446,17 +407,14 @@ mouseread(f, p)
 	var s, i;
 
 	if(f.mouse != f.f.draw.mouse) {
-		s = f.mouse = f.f.draw.mouse;
+		f.mouse = f.f.draw.mouse;
+		s = f.mouse.slice(1);
 		for(i in s){
 			s[i] = String(s[i]).substring(0, 11);
 			if(s[i].length < 11)
 				s[i] = Array(12 - s[i].length).join(' ') + s[i];
 		}
-		if (f.f.draw.resize) {
-			f.f.draw.resize = 0;
-			s = 'r' + s.join(' ') + ' ';
-		} else
-			s = 'm' + s.join(' ') + ' ';
+		s = f.mouse[0] + s.join(' ') + ' ';
 		respond(p, s);
 	} else {
 		var l = f.f.draw.onmouse.length;
@@ -475,11 +433,10 @@ function mkdrawfiles(w) {
 	draw.ctx = undefined;
 	draw.screens = {};
 	draw.conns = [];
-	draw.mouse = [0, 0, 0, 0];
+	draw.mouse = ['m', 0, 0, 0, 0];
 	draw.mouseevent = {clientX:0, clientY:0, button:0};
 	draw.starttime = new Date().getTime();
 	draw.onmouse = [];
-	draw.resize = 0;
 	draw.refresh = [0, 0, 0, 0, 0];
 	draw.onrefresh = [];
 	draw.winid = id;

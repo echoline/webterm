@@ -31,10 +31,21 @@ function passtokey(key, pw) {
 
 var loginerror = ""
 function getlogin() {
+	var i;
+	for (i = 0; i < windows.length; i++)
+		if (windows[i])
+			closeWindow(windows[i].id);
+	nwindows = 0;
+	windows = [];
+	terminals = {};
+	dragging = false;
+	resizing = false;
+
 	username = null;
 	password = null;
 
 	document.getElementById("buttons").innerHTML = loginerror + '<form action="javascript: username = document.getElementsByName(\'username\')[0].value; password = document.getElementsByName(\'password\')[0].value; if (username.length != 0) { document.getElementById(\'buttons\').innerHTML = \'logging in...\'; startauth(); }; void(0);"><table><tr><td>username:</td><td><input type="text" name="username" onkeypress="javascript: if(event.which == 13 && document.getElementsByName(\'username\')[0].value.length != 0) { document.getElementsByName(\'password\')[0].focus(); event.preventDefault(); return false; }"/></td><td></td></tr><tr><td>password:</td><td><input type="password" name="password"/></td><td><input type="submit" value="log in"/></td></tr></table></form>';
+	loginerror = "";
 
 	document.getElementsByName("username")[0].focus();
 }
@@ -54,7 +65,7 @@ function startauth() {
 	var authinfo = {}
 	cpubuf = "";
 
-	conn = newWebSocket("wss://echoline.org:8443/rcpu");
+	conn = newWebSocket("ws://localhost:8000/rcpu");
 	conn.onmessage = function(event) {
 		cpubuf += atob(event.data);
 		if(oncpumsg)
@@ -63,15 +74,6 @@ function startauth() {
 	}
 	conn.onerror = fatal;
 	conn.onclose = function(event) {
-		var i;
-		for (i = 0; i < windows.length; i++)
-			if (windows[i])
-				closeWindow(windows[i].id);
-		nwindows = 0;
-		windows = [];
-		terminals = {};
-		dragging = false;
-		resizing = false;
 		getlogin();
 	}
 	conn.onopen = function(event) {
@@ -151,7 +153,7 @@ function startauth() {
 				s.YAc = arr2str(y);
 				s = pack(s, AuthPAKC2A);
 
-				authconn = newWebSocket("wss://echoline.org:8443/auth");
+				authconn = newWebSocket("ws://localhost:8000/auth");
 				authconn.onmessage = function(event) {
 					var i, a;
 
@@ -253,6 +255,10 @@ function startauth() {
 					authbuf = "";
 				}
 				authconn.onclose = function(event) {
+					if (authstate == 0) {
+						loginerror = "password incorrect<br/>";
+						conn.close();
+					}
 				}
 				authconn.onerror = fatal;
 				break;

@@ -10,7 +10,7 @@ mkfile("/dev/mp3", function(f, p) {
 	function(f, p) {
 		f.buffer += p.data;
 		var l = f.buffer.length;
-		if (l < 0x10000)
+		if (l < 0x20000)
 			l = 0;
 		while (l > 0) {
 			l = f.buffer.substring(0, l).lastIndexOf(String.fromCharCode(0xFF));
@@ -18,7 +18,7 @@ mkfile("/dev/mp3", function(f, p) {
 				break;
 		}
 		if (l > 0) {
-			f.context.decodeAudioData(str2arr(f.buffer.substring(0, l)).buffer, function(buffer) {
+			f.context.decodeAudioData(str2arr(f.buffer.substring(0, l)).buffer).then(function(buffer) {
 				var source = new AudioBufferSourceNode(f.context);
 				source.buffer = buffer;
 				source.connect(f.context.destination);
@@ -37,18 +37,20 @@ mkfile("/dev/mp3", function(f, p) {
 					f.queue[0].prestart();
 					f.queue[0].start();
 				}
-			}).catch(function(error) {
-				error9p(p.tag, error);
+				f.buffer = f.buffer.substring(l);
+			}).catch(function(err) {
+				error9p(p.tag, err);
+				f.buffer = "";
 			});
-			f.buffer = f.buffer.substring(l);
-		} else if (l <= 0 && f.buffer.length > 0xFFFF)
+		} else if (f.buffer.length >= 0x20000) {
 			error9p(p.tag, "not valid mp3 data");
-		else 
+			f.buffer = "";
+		} else 
 			respond(p, -1);
 	},
 	function(f, p) {
 		if (f.buffer.length > 0) {
-			f.context.decodeAudioData(str2arr(f.buffer).buffer, function(buffer) {
+			f.context.decodeAudioData(str2arr(f.buffer).buffer).then(function(buffer) {
 				var source = new AudioBufferSourceNode(f.context);
 				source.buffer = buffer;
 				source.connect(f.context.destination);
@@ -59,8 +61,8 @@ mkfile("/dev/mp3", function(f, p) {
 				f.queue.push(source);
 				if (f.queue.length == 1)
 					f.queue[0].start();
-			}).catch(function(error) {
-				term.writeterminal(error + "\n");
+			}).catch(function(err) {
+				term.print(err + "\n");
 			});
 		}
 		if (f.queue.length == 0)

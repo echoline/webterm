@@ -75,7 +75,7 @@ function startui() {
 			var j;
 			for (j = 0; win(j) != undefined; j++);
 			f.window = newWindow(j, true);
-			mkdrawfiles(f.window);
+			//mkdrawfiles(f.window);
 			document.body.appendChild(f.window);
 			f.window.terminal.focus();
 		},
@@ -289,7 +289,7 @@ i			} catch(err) {
 	div.style.top = (id * 10 + 30) + 'px';
 	div.style.left = (id * 10 + 30) + 'px';
 	div.style.width = '640px';
-	div.style.height = '480px';
+	div.style.height = '510px';
 	div.style.zIndex = nwindows;
 
 	div.bg = document.createElement('div');
@@ -303,11 +303,11 @@ i			} catch(err) {
 	div.titleBar = document.createElement('div');
 	div.titleBar.div = div;
 	div.titleBar.setAttribute('class', 'title');
-	div.titleBar.innerHTML = '<span class="name">' + unescape(div.id) + '</span>';
+	div.titleBar.innerHTML = '<span class="name" style="user-select:none;">' + unescape(div.id) + '</span>';
 	div.titleBar.setAttribute('tabindex', '-1');
 	div.titleBar.onkeydown = function(event) {
-		if(event.which == 46){
-			this.div.terminal.addchar(127);
+		if (event.which == 46) {
+			div.terminal.addchar(127);
 		}
 	}
 
@@ -405,7 +405,6 @@ function closeWindow(id) {
 	if (w != null) {
 		w.terminal.note("hangup");
 		document.body.removeChild(w);
-		rmfile("/dev/hsys/" + id);
 		nwindows--;
 	}
 }
@@ -457,8 +456,7 @@ function resizeCompute(div) {
 			f.draw.disp.r[2] = width;
 			f.draw.disp.r[3] = height;
 			f.draw.disp.clipr = f.draw.disp.r;
-			f.draw.resize = 1;
-			f.draw.mouse = [width, height, 0, new Date().getTime() - draw.starttime];
+			f.draw.mouse = ['r', width, height, 0, new Date().getTime() - f.draw.starttime];
 			while(f.draw.onmouse.length != 0)
 				f.draw.onmouse.shift()();
 		}

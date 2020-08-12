@@ -57,9 +57,6 @@ function newTerminal() {
 			ta.addchar(10);
 			ta.flush();
 		}
-		else {
-			alert("unknown input event type: " + event.inputType);
-		}
 		return false;
 	}
 

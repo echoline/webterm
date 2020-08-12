@@ -15,7 +15,7 @@ enc64.$O: enc64.c
 	$O^c enc64.c
 
 install: hwin enc64
-	cp hwin enc64 /$objtype/bin/
+	cp hwin enc64 $home/bin/$objtype/
 
 clean:
 	rm -f hwin.[$OS] enc64.[$OS] hwin enc64
