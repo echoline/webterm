@@ -2,12 +2,45 @@
 
 fn sigint {
 	running=0
-	echo 'showWindow('''^`"{ cat /dev/winid }^''')' > /dev/js
 	label $"l
+	echo -n > /dev/innerHTML
+}
+
+fn clockface {
+	ifs='
+ :'
+
+	t=`{date -t | sed 's,^.*T,,
+				s,-.*$,,'}
+
+	echo '<svg viewBox="0 0 40 40" style="max-width:100%;max-height:100%;">'
+	echo '<circle cx="2" cy="20" r="1" />'
+	echo '<circle cx="4.412" cy="11" r="1" />'
+	echo '<circle cx="11" cy="4.412" r="1" />'
+	echo '<circle cx="20" cy="2" r="1" />'
+	echo '<circle cx="29" cy="4.412" r="1" />'
+	echo '<circle cx="35.588" cy="11" r="1" />'
+	echo '<circle cx="38" cy="20" r="1" />'
+	echo '<circle cx="35.588" cy="29" r="1" />'
+	echo '<circle cx="29" cy="35.588" r="1" />'
+	echo '<circle cx="20" cy="38" r="1" />'
+	echo '<circle cx="11" cy="35.588" r="1" />'
+	echo '<circle cx="4.412" cy="29" r="1" />'
+
+	rad=`{ echo '2*3.14159/12 * ('$t(1)' + '$t(2)'/60)' | hoc }
+	echo '<line x1="20" y1="20" x2="'`{ echo '20 + sin('`{ echo -n $rad }') * 10' | hoc}^'" y2="'`{ echo '20 - cos('`{ echo -n $rad }') * 10' | hoc}^'" stroke="#000" />'
+
+	rad=`{ echo '2*3.14159/60 * '$t(2) | hoc }
+	echo '<line x1="20" y1="20" x2="'`{ echo '20 + sin('`{ echo -n $rad }') * 15' | hoc}^'" y2="'`{ echo '20 - cos('`{ echo -n $rad }') * 15' | hoc}^'" stroke="#000" />'
+
+	rad=`{ echo '2*3.14159/60 * '$t(3) | hoc }
+	echo '<line x1="20" y1="20" x2="'`{ echo '20 + sin('`{ echo -n $rad }') * 15' | hoc}^'" y2="'`{ echo '20 - cos('`{ echo -n $rad }') * 15' | hoc}^'" stroke="#D00" />'
+
+	echo '<circle cx="20" cy="20" r="0.7" />'
+	echo '</svg>'
 }
 
 running=1
 l=`"{ cat /dev/label }
-echo 'hideWindow('''^`"{ cat /dev/winid }^''')' > /dev/js
-while(~ $running 1 && date > /dev/label) { sleep 1 }
+while(~ $running 1 && date > /dev/label && clockface > /dev/innerHTML) { sleep 1 }
 

@@ -7,7 +7,7 @@ fn sigint {
 }
 
 if(! ~ $#* 1)
-	url=https://echoline.org
+	url=https://blog.echoline.org
 if not
 	url=$1
 

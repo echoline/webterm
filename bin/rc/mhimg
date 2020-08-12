@@ -1,0 +1,41 @@
+#!/bin/rc
+
+fn sigint {
+	running=0
+	echo -n > /dev/innerHTML
+	label $"l
+	echo 'win('^$id^').terminal.focus()' > /dev/js
+}
+
+id=`{ cat /dev/winid }
+l=`"{ cat /dev/label }
+
+if (! ~ $#* 1) {
+	echo usage: mhimg file/url
+	exit
+}
+
+label $"1
+echo 'win('^$id^').titleBar.focus()' > /dev/js
+ramfs -m /n/mhimg
+running=1
+while(~ $running 1 && {
+	echo -n '<img style="max-width:100%; max-height:100%;" src="'
+	if (~ $"1 http://* https://*) {
+		echo -n $"1
+		if (echo $"1 | grep -s '\?')
+			echo -n '&randtime=';
+		if not
+			echo -n '?randtime=';
+		echo -n `{ awk '{ print $2 }' /dev/time }
+	}
+	if not
+		echo -n 'data:text/css;base64,'^`{ enc64 < $"1 }
+	echo '"/>'
+} > /n/mhimg/tmp &&
+sleep 1 &&
+~ $running 1 &&
+mv /n/mhimg/tmp /dev/innerHTML) {}
+unmount /n/mhimg
+
+

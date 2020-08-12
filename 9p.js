@@ -225,7 +225,7 @@ function Twrite(p) {
 }
 
 function dirent(f) {
-	s = {"type":0, "dev":0, "qid": pack(f.qid, Qid), "mode": 0, "atime":0, "mtime":0, "length":0, "name":f.name, "uid":"js", "gid":"js", "muid":"js"};
+	s = {"type":0, "dev":0, "qid": pack(f.qid, Qid), "mode": 0, "atime":0, "mtime":0, "length":0, "name":f.name, "uid":username, "gid":username, "muid":username};
 	s.atime = s.mtime = new Date().getTime() / 1000;
 	if(f.qid.type & QTDIR)
 		s.mode |= 0111;
@@ -398,3 +398,15 @@ mkfile("/dev/time", undefined, function(f, p) {
 	buf += "                 1000 ";
 	respond(p, buf.substring(p.offset, p.offset + p.count));
 }, invalidop);
+mkfile("/dev/random", undefined, function(f, p) { respond(p, arr2str(chachabytes(p.count))) });
+mkfile("/dev/zero", undefined, function(f, p) { respond(p, arr2str(new Uint8Array(p.count))) });
+mkfile("/dev/null", undefined, function(f, p) { respond(p, "") }, function(f, p) { respond(p, -1) });
+mkfile("/dev/user", undefined, function(f, p) { respond(p, username.substring(p.offset, p.offset+p.count)) });
+mkfile("/dev/snarf", function(f) { f.text = "" }, function(f, p) {
+	navigator.clipboard.readText().then(function(text) { respond(p, text.substring(p.offset, p.offset+p.count)) }).catch(function(err) { error9p(p.tag, err.message) });
+}, function(f, p) {
+	f.text = f.text.replaceAt(p.offset, p.data);
+	navigator.clipboard.writeText(f.text).then(function() { respond(p, -1); }).catch(function(err) { error9p(p.tag, err.message); });
+});
+mkfile("/dev/osversion", undefined, function(f, p) { var ver = "2000"; respond(p, ver.substring(p.offset, p.offset+p.count)) });
+
