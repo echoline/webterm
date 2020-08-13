@@ -50,6 +50,8 @@ fn clockhands {
 	}
 
 	lastsec=$t(3)
+
+	echo > /dev/null
 }
 
 running=1
