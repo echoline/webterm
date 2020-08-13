@@ -138,6 +138,9 @@ function newWindow(id, canclose) {
 
 	div.id = id;
 	div.terminal = newTerminal();
+	div.terminal.onmouseenter = function(event) {
+		div.terminal.focus();
+	}
 	terminals[id] = div.terminal;
 
 	div.bg = document.createElement('div');
