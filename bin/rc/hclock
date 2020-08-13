@@ -36,6 +36,9 @@ fn clockhands {
 	t=`{date -t | sed 's,^.*T,,
 					s,-.*$,,'}
 
+	rad=`{ echo '2*3.14159/60 * '$t(3) | hoc }
+	echo '<line x1="20" y1="20" x2="'`{ echo '20 + sin('`{ echo -n $rad }') * 15' | hoc}^'" y2="'`{ echo '20 - cos('`{ echo -n $rad }') * 15' | hoc}^'" stroke="#D00" />' > /dev/dom/0/children/13/innerHTML
+
 	if (test $t(3) -lt $lastsec) {
 	{
 		rad=`{ echo '2*3.14159/12 * ('$t(1)' + '$t(2)'/60)' | hoc }
@@ -45,9 +48,6 @@ fn clockhands {
 		echo '<line x1="20" y1="20" x2="'`{ echo '20 + sin('`{ echo -n $rad }') * 15' | hoc}^'" y2="'`{ echo '20 - cos('`{ echo -n $rad }') * 15' | hoc}^'" stroke="#000" />'
 	} > /dev/dom/0/children/12/innerHTML
 	}
-
-	rad=`{ echo '2*3.14159/60 * '$t(3) | hoc }
-	echo '<line x1="20" y1="20" x2="'`{ echo '20 + sin('`{ echo -n $rad }') * 15' | hoc}^'" y2="'`{ echo '20 - cos('`{ echo -n $rad }') * 15' | hoc}^'" stroke="#D00" />' > /dev/dom/0/children/13/innerHTML
 
 	lastsec=$t(3)
 }
