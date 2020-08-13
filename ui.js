@@ -292,7 +292,7 @@ i			} catch(err) {
 				}
 			} catch(err) {
 			}
-		});
+		}, function(f) { return div.bg.innerHTML.length });
 
 	div.terminal.div = div;
 	div.terminal.style.display = 'block';
@@ -468,7 +468,7 @@ function mkdomchildren(path, element) {
 
 	mkfile(path + "/innerHTML", function(f) {
 			try {
-				f.text = htmldecode(element.innerHTML);
+				f.text = element.innerHTML;
 				if (f.mode & 0x10)
 					f.text = "";
 			} catch(err) {
@@ -498,11 +498,11 @@ function mkdomchildren(path, element) {
 				}
 			} catch(err) {
 			}
-		});
+		}, function(f) { return element.innerHTML.length });
 
 	mkfile(path + "/value", function(f) {
 			try {
-				f.text = htmldecode(element.value);
+				f.text = element.value;
 				if (f.mode & 0x10)
 					f.text = "";
 			} catch(err) {
@@ -531,7 +531,7 @@ function mkdomchildren(path, element) {
 				}
 			} catch(err) {
 			}
-		});
+		}, function() { try { return element.value.length; } catch(e) { return 0; } });
 
 	mkfile(path + "/type", undefined, function(f, p) {
 		respond(p, element.nodeName.substring(p.offset, p.offset+p.count));
@@ -540,10 +540,18 @@ function mkdomchildren(path, element) {
 	mkdir(path + "/attributes");
 	for (i = 0; i < element.attributes.length; i++) {
 		var name = element.attributes[i].name;
-		var f = mkfile(path + "/attributes/" + name, undefined, function(f, p) {
-			var value = f.f.element.attributes[f.f.name].value;
-			respond(p, value.substring(p.offset, p.offset + p.count));
-		})
+		var f = mkfile(path + "/attributes/" + name, function(f) {
+			f.value = f.f.element.attributes[f.f.name].value;
+			if (f.mode & 0x10)
+				f.value = "";
+		}, function(f, p) {
+			respond(p, f.value.substring(p.offset, p.offset + p.count));
+		}, function(f, p) {
+			f.value = f.value.replaceAt(p.offset, p.data);
+			respond(p, -1);
+		}, function(f) {
+			f.f.element.setAttribute(f.f.name, f.value);
+		}, function(f) { try { return f.element.attributes[f.name].value.length } catch(e) { return 0; } });
 		f.element = element;
 	}
 

@@ -7,6 +7,9 @@ fn sigint {
 	echo -n > /dev/innerHTML
 }
 
+ifs='
+ :'
+
 fn clockface {
 	echo '<svg viewBox="0 0 40 40" style="max-width:100%;max-height:100%;display:block;margin:auto;">'
 	echo '<circle cx="2" cy="20" r="1" />'
@@ -22,9 +25,21 @@ fn clockface {
 	echo '<circle cx="11" cy="35.588" r="1" />'
 	echo '<circle cx="4.412" cy="29" r="1" />'
 
-	echo '<g></g>'
-	echo '<g></g>'
+	t=`{date -t | sed 's,^.*T,,
+			s,-.*$,,'}
 
+	echo '<g>'
+	rad=`{ echo '2*3.14159/12 * ('$t(1)' + '$t(2)'/60)' | hoc }
+	echo '<line x1="20" y1="20" x2="'^`{ echo '20 + sin('^`{ echo -n $rad }') * 10' | hoc}^'" y2="'^`{ echo '20 - cos('^`{ echo -n $rad }') * 10' | hoc}^'" stroke="#000" />'
+	rad=`{ echo '2*3.14159/60 * '$t(2) | hoc }
+	echo '<line x1="20" y1="20" x2="'^`{ echo '20 + sin('^`{ echo -n $rad }') * 15' | hoc}^'" y2="'^`{ echo '20 - cos('^`{ echo -n $rad }') * 15' | hoc}^'" stroke="#000" />'
+	echo '</g>'
+
+	echo '<g>'
+	rad=`{ echo '2*3.14159/60 * '$t(3) | hoc }
+	echo '<line x1="20" y1="20" x2="'^`{ echo '20 + sin('^`{ echo -n $rad }') * 15' | hoc}^'" y2="'^`{ echo '20 - cos('^`{ echo -n $rad }') * 15' | hoc}^'" stroke="#D00" />'
+	echo '</g>'
+	
 	echo '<circle cx="20" cy="20" r="0.7" />'
 	echo '</svg>'
 }
@@ -37,19 +52,22 @@ fn clockhands {
 					s,-.*$,,'}
 
 	rad=`{ echo '2*3.14159/60 * '$t(3) | hoc }
-	echo '<line x1="20" y1="20" x2="'`{ echo '20 + sin('`{ echo -n $rad }') * 15' | hoc}^'" y2="'`{ echo '20 - cos('`{ echo -n $rad }') * 15' | hoc}^'" stroke="#D00" />' > /dev/dom/0/children/13/innerHTML
+	echo -n `{ echo '20 + sin('`{ echo -n $rad }') * 15' | hoc} > /dev/dom/0/children/13/children/0/attributes/x2
+	echo -n `{ echo '20 - cos('`{ echo -n $rad }') * 10' | hoc} > /dev/dom/0/children/13/children/0/attributes/y2
 
-	if (test $t(3) -lt $lastsec) {
-	{
+	sec=`{ echo $t(3) | hoc }
+
+	if (test $lastsec -gt $sec) {
 		rad=`{ echo '2*3.14159/12 * ('$t(1)' + '$t(2)'/60)' | hoc }
-		echo '<line x1="20" y1="20" x2="'`{ echo '20 + sin('`{ echo -n $rad }') * 10' | hoc}^'" y2="'`{ echo '20 - cos('`{ echo -n $rad }') * 10' | hoc}^'" stroke="#000" />'
+		echo -n `{ echo '20 + sin('`{ echo -n $rad }') * 10' | hoc} > /dev/dom/0/children/12/children/0/attributes/x2
+		echo -n `{ echo '20 - cos('`{ echo -n $rad }') * 10' | hoc} > /dev/dom/0/children/12/children/0/attributes/y2
 
 		rad=`{ echo '2*3.14159/60 * '$t(2) | hoc }
-		echo '<line x1="20" y1="20" x2="'`{ echo '20 + sin('`{ echo -n $rad }') * 15' | hoc}^'" y2="'`{ echo '20 - cos('`{ echo -n $rad }') * 15' | hoc}^'" stroke="#000" />'
-	} > /dev/dom/0/children/12/innerHTML
+		echo -n `{ echo '20 + sin('`{ echo -n $rad }') * 15' | hoc} > /dev/dom/0/children/12/children/1/attributes/x2
+		echo -n `{ echo '20 - cos('`{ echo -n $rad }') * 15' | hoc} > /dev/dom/0/children/12/children/1/attributes/y2
 	}
 
-	lastsec=$t(3)
+	lastsec=$sec
 
 	echo > /dev/null
 }
@@ -60,4 +78,3 @@ l=`"{ cat /dev/label }
 clockface > /dev/innerHTML
 clockhands
 while(~ $running 1 && date > /dev/label && clockhands) { sleep 1 }
-

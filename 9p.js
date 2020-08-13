@@ -227,6 +227,8 @@ function Twrite(p) {
 function dirent(f) {
 	s = {"type":0, "dev":0, "qid": pack(f.qid, Qid), "mode": 0, "atime":0, "mtime":0, "length":0, "name":f.name, "uid":username, "gid":username, "muid":username};
 	s.atime = s.mtime = new Date().getTime() / 1000;
+	if(f.filelength)
+		s.length = f.filelength(f);
 	if(f.qid.type & QTDIR)
 		s.mode |= 0111;
 	if(f.write)
@@ -299,7 +301,7 @@ function mkdir(path) {
 	return f;
 }
 
-function mkfile(path, open, read, write, close) {
+function mkfile(path, open, read, write, close, filelength) {
 	var f, n;
 
 	try {
@@ -310,7 +312,7 @@ function mkfile(path, open, read, write, close) {
 	f = lookupfile(path, 0);
 	path = path.split('/');
 	n = path[path.length - 1];
-	f.children[n] = {name: n, parent: f, qid: {type: 0, ver: 0, path: ++lastqid}, open: open, read: read, write: write, close: close};
+	f.children[n] = {name: n, parent: f, qid: {type: 0, ver: 0, path: ++lastqid}, open: open, read: read, write: write, close: close, filelength: filelength};
 	f.nchildren.push(f.children[n]);
 
 	return f.children[n];

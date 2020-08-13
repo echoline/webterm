@@ -17,7 +17,7 @@ mkfile("/dev/bintime", undefined, function(f, p) {
 	b = itomp(1000);
 	mptober(b, buf, 16, 8);
 	respond(p, arr2str(buf.slice(p.offset, p.offset + p.count)));
-}, invalidop);
+}, invalidop, undefined, function(f) { return 24; });
 mkfile("/dev/time", undefined, function(f, p) {
 	var now = Date.now();
 	var cycles = "" + (now - starttime);
@@ -36,7 +36,7 @@ mkfile("/dev/time", undefined, function(f, p) {
 	buf += cycles + " ";
 	buf += "                 1000 ";
 	respond(p, buf.substring(p.offset, p.offset + p.count));
-}, invalidop);
+}, invalidop, undefined, function(f) { return 78; });
 mkfile("/dev/random", undefined, function(f, p) { respond(p, arr2str(chachabytes(p.count))) });
 mkfile("/dev/zero", undefined, function(f, p) { respond(p, arr2str(new Uint8Array(p.count))) });
 mkfile("/dev/null", undefined, function(f, p) { respond(p, "") }, function(f, p) { respond(p, -1) });
