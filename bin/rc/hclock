@@ -8,7 +8,7 @@ fn sigint {
 }
 
 fn clockface {
-	echo '<svg viewBox="0 0 40 40" style="max-width:100%;max-height:100%;">'
+	echo '<svg viewBox="0 0 40 40" style="max-width:100%;max-height:100%;display:block;margin:auto;">'
 	echo '<circle cx="2" cy="20" r="1" />'
 	echo '<circle cx="4.412" cy="11" r="1" />'
 	echo '<circle cx="11" cy="4.412" r="1" />'
