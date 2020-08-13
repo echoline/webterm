@@ -55,6 +55,29 @@ threadmain(int argc, char **argv) {
 	int r;
 	Channel *cpid;
 	Channel *waitchan;
+	char **args = argv;
+	char *path;
+	char *tok;
+	char *name;
+	Dir *dir;
+	char *cmd2;
+
+	if (argc > 1) {
+		path = getenv("path");
+		tok = strtok(path, " ");
+		cmd = argv[1];
+		args = &argv[1];
+		do {
+			name = smprint("%s/%s", tok, cmd);
+			if ((dir = dirstat(name)) != nil) {
+				free(dir);
+				cmd = name;
+				break;
+			}
+			free(name);
+		} while(strtok(nil, " ") != nil);
+		free(path);
+	}
 
 	r = rfork(RFNAMEG|RFFDG|RFENVG|RFPROC);
 	if (r == -1)
@@ -84,7 +107,7 @@ threadmain(int argc, char **argv) {
 	waitchan = threadwaitchan();
 	proccreate(noteproc, cpid, mainstacksize);
 	proccreate(waitproc, waitchan, mainstacksize);
-	procexec(cpid, cmd, argv);
+	procexec(cpid, cmd, args);
 	sysfatal("exec: %r");
 }
 

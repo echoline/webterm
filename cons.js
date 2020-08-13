@@ -68,11 +68,13 @@ function newTerminal() {
 	ta.onnote = [];
 	ta.rawmode = false;
 	ta.holdmode = false;
+	ta.scrollmode = true;
 
 	ta.writeterminal = function(msg) {
 		this.backlog += msg;
 		this.value = fromutf8(this.backlog + this.consbuf) + "\u2588";
-		this.scrollTop = this.scrollHeight;
+		if (this.scrollmode)
+			this.scrollTop = this.scrollHeight;
 	}
 
 	ta.print = function(msg) {

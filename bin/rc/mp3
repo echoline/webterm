@@ -6,9 +6,8 @@ fn sigint {
 }
 
 l=`"{cat /dev/label}
-label http://stream1.opb.org/radio.mp3
 echo 'hide' > /dev/wctl
-hget http://stream1.opb.org/radio.mp3 > /dev/mp3
+{ for(s in $*) { label $"s; cat $"s; } } > /dev/mp3
 echo 'unhide' > /dev/wctl
 label $"l
 
