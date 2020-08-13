@@ -77,6 +77,12 @@ function toutf8(s) {
 	return unescape(encodeURIComponent(s));
 }
 
+function htmldecode(s) {
+	var div = document.createElement("div");
+	div.innerHTML = s;
+	return div.childNodes.length == 1? div.childNodes[0].nodeValue: s;
+}
+
 function encode32(output, offset, input, len) {
 	var x = new Uint32Array(1);
 	var e, i, end;

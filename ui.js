@@ -147,8 +147,12 @@ function newWindow(id, canclose) {
 	div.bg.div = div;
 	div.bg.setAttribute('class', 'bg');
 	div.bg.setAttribute('tabindex', '-1');
-	div.bg.onkeydown = function (event) {
-		div.terminal.onkeydown(event);
+	div.bg.onmouseenter = function(event) {
+		div.bg.focus();
+	}
+	div.bg.onkeydown = function(event) {
+		if (event.which == 46)
+			div.terminal.onkeydown(event);
 	}
 
 	mkdir("/dev/hsys/" + id);
@@ -262,14 +266,7 @@ i			} catch(err) {
 		},
 		function(f, p) {
 			try {
-				var data = f.text;
-				var runlen = f.text.length - p.offset;
-				if (p.count > runlen) {
-					p.count = runlen;
-				}
-				data = data.slice(p.offset, p.count);
-				data = toutf8(data);
-				respond(p, data);
+				respond(p, f.text.substring(p.offset, p.offset+p.count));
 			} catch(err) {
 				error9p(p.tag, err.message);
 			}
@@ -312,12 +309,6 @@ i			} catch(err) {
 	div.titleBar.div = div;
 	div.titleBar.setAttribute('class', 'title');
 	div.titleBar.innerHTML = '<span class="name" style="user-select:none;">' + unescape(div.id) + '</span>';
-	div.titleBar.setAttribute('tabindex', '-1');
-	div.titleBar.onkeydown = function(event) {
-		if (event.which == 46) {
-			div.terminal.addchar(127);
-		}
-	}
 
 	div.titleBar.onmousedown = function(event) {
 		dragStart(id, event.screenX, event.screenY);
@@ -477,7 +468,7 @@ function mkdomchildren(path, element) {
 
 	mkfile(path + "/innerHTML", function(f) {
 			try {
-				f.text = element.innerHTML;
+				f.text = htmldecode(element.innerHTML);
 				if (f.mode & 0x10)
 					f.text = "";
 			} catch(err) {
@@ -486,14 +477,7 @@ function mkdomchildren(path, element) {
 		},
 		function(f, p) {
 			try {
-				var data = f.text;
-				var runlen = f.text.length - p.offset;
-				if (p.count > runlen) {
-					p.count = runlen;
-				}
-				data = data.slice(p.offset, p.count);
-				data = toutf8(data);
-				respond(p, data);
+				respond(p, f.text.substring(p.offset, p.offset+p.count));
 			} catch(err) {
 				error9p(p.tag, err.message);
 			}
@@ -511,6 +495,39 @@ function mkdomchildren(path, element) {
 				if (f.mode & 1) {
 					element.innerHTML = f.text;
 					mkdomchildren(path, element);
+				}
+			} catch(err) {
+			}
+		});
+
+	mkfile(path + "/value", function(f) {
+			try {
+				f.text = htmldecode(element.value);
+				if (f.mode & 0x10)
+					f.text = "";
+			} catch(err) {
+				return err.message;
+			}
+		},
+		function(f, p) {
+			try {
+				respond(p, f.text.substring(p.offset, p.offset+p.count));
+			} catch(err) {
+				error9p(p.tag, err.message);
+			}
+		},
+		function(f, p) {
+			try {
+				f.text = f.text.replaceAt(p.offset, p.data);
+				respond(p, p.data.length);
+			} catch(err) {
+				error9p(p.tag, err.message);
+			}
+		},
+		function(f) {
+			try {
+				if (f.mode & 1) {
+					element.value = f.text;
 				}
 			} catch(err) {
 			}
