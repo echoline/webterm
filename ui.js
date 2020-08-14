@@ -56,17 +56,16 @@ function onmove(nx, ny) {
 }
 
 function setCurrent(div) {
-	var old = null;
-	if (div === current)
-		return;
-	if (current && current.onwctlread.length > 0)
-		old = current;
+	var old = current;
+	if (!old)
+		old = div;
 	current = div;
-	if (old) {
-		old.onwctlread.shift()();
+	if (old !== current) {
+		while (old.onwctlread.length > 0)
+			old.onwctlread.shift()();
+		while (current.onwctlread.length > 0)
+			current.onwctlread.shift()();
 	}
-	if (current && current.onwctlread.length > 0)
-		current.onwctlread.shift()();
 	if (current.termhidden)
 		current.bg.focus();
 	else
@@ -78,17 +77,18 @@ var mouseevent = {clientX:0, clientY:0, button:0};
 var mouse = ['m', 0, 0, 0, 0];
 var onmouse = [];
 
-function mousechange(k, e) {
+function mousechange(k, f) {
 	var n;
+	var e = f.mouseevent;
 
-	mouse = ['m', e.clientX, e.clientY, mouse[3], Date.now() - starttime];
+	f.mouse = ['m', e.clientX, e.clientY, f.mouse[3], Date.now() - starttime];
 	switch(k){
-	case 1: mouse[3] |= (1<<e.button); break;
-	case 2: mouse[3] &= ~(1<<e.button); break;
+	case 1: f.mouse[3] |= (1<<e.button); break;
+	case 2: f.mouse[3] &= ~(1<<e.button); break;
 	}
-	n = onmouse.length;
+	n = f.onmouse.length;
 	while(n--)
-		onmouse.shift()();
+		f.onmouse.shift()();
 }
 
 function startui() {
@@ -103,24 +103,35 @@ function startui() {
 		onmove(event.screenX, event.screenY);
 		mouseevent.clientX = event.clientX;
 		mouseevent.clientY = event.clientY;
-		mousechange(0, mouseevent);
+		mousechange(0, window);
 	}
 
 	document.ontouchmove = function(event) {
 		onmove(event.touches[0].screenX, event.touches[0].screenY);
 		mouseevent.clientX = event.clientX;
 		mouseevent.clientY = event.clientY;
-		mousechange(0, mouseevent);
+		mousechange(0, window);
 	}
 
 	document.onmousedown = function(event) {
 		mouseevent.button = event.button;
-		mousechange(1, mouseevent);
+		mousechange(1, window);
 	}
 
 	document.onmouseup = function(event) {
 		mouseevent.button = event.button;
-		mousechange(2, mouseevent);
+		mousechange(2, window);
+	}
+
+	window.resizeTimer = undefined;
+	window.onresize = function(event) {
+		if (resizeTimer)
+			clearTimeout(resizeTimer);
+		resizeTimer = setTimeout(function() {
+				mouse = ['r', window.innerWidth, window.innerHeight, mouse[3], Date.now() - starttime];
+				while(onmouse.length != 0)
+					onmouse.shift()();
+			}, 250);
 	}
 
 	mkdir("/dev/hsys");
@@ -247,29 +258,48 @@ function parsewctl(div, op, data) {
 	var maxx = minx + width;
 	var maxy = miny + height;
 
-	for (i = 0; i < args.length-1; i++) {
-		if (args[i] == '-minx')
+	for (i = 0; i < args.length; i++) {
+		if (args[i] == '-minx') {
+			if(i >= (args.length-1))
+				throw "missing or bad wctl parameter";
 			minx = parseInt(args[++i]);
-		else if (args[i] == '-miny')
+		} else if (args[i] == '-miny') {
+			if(i >= (args.length-1))
+				throw "missing or bad wctl parameter";
 			miny = parseInt(args[++i]);
-		else if (args[i] == '-maxx')
+		} else if (args[i] == '-maxx') {
+			if(i >= (args.length-1))
+				throw "missing or bad wctl parameter";
 			maxx = parseInt(args[++i]);
-		else if (args[i] == '-maxy')
+		} else if (args[i] == '-maxy') {
+			if(i >= (args.length-1))
+				throw "missing or bad wctl parameter";
 			maxy = parseInt(args[++i]);
-		else if (args[i] == '-r') {
+		} else if (args[i] == '-r') {
 			if(i >= (args.length-4))
 				throw "missing or bad wctl parameter";
 			minx = parseInt(args[++i]);
 			miny = parseInt(args[++i]);
 			maxx = parseInt(args[++i]);
 			maxy = parseInt(args[++i]);
-		}
-		else if (args[i] == '-dx')
+		} else if (args[i] == '-dx') {
+			if(i >= (args.length-1))
+				throw "missing or bad wctl parameter";
 			maxx = minx + parseInt(args[++i]);
-		else if (args[i] == '-dy')
+		} else if (args[i] == '-dy') {
+			if(i >= (args.length-1))
+				throw "missing or bad wctl parameter";
 			maxy = miny + parseInt(args[++i]);
-		else if (op != "new")
+		} else if (op != "new") {
 			throw "extraneous text in wctl message";
+		} else {
+			if (args[i] == '-noscroll')
+				div.terminal.scrollmode = false;
+			if (args[i] == '-scroll')
+				div.terminal.scrollmode = true;
+			if (args[i] == '-hide')
+				hideWindow(div.id);
+		}
 	}
 	if (op != "new" && i != args.length)
 		throw "missing or bad wctl parameter";
@@ -295,10 +325,51 @@ function newWindow(id, canclose) {
 	nwindows++;
 
 	div.id = id;
+	div.onmousemove = function(event) {
+		try {
+			f = lookupfile("/dev/hsys/" + div.id + "/mouse", 1);
+			f.mouseevent.clientX = event.clientX;
+			f.mouseevent.clientY = event.clientY;
+			mousechange(0, f);
+		} catch(e) {
+		}
+	}
+
+	div.onmousedown = function(event) {
+		try {
+			f = lookupfile("/dev/hsys/" + div.id + "/mouse", 1);
+			f.mouseevent.button = event.button;
+			mousechange(1, f);
+		} catch(e) {
+		}
+		raiseWindow(id);
+		setCurrent(div);
+	}
+
+	div.onmouseup = function(event) {
+		try {
+			f = lookupfile("/dev/hsys/" + div.id + "/mouse", 1);
+			f.mouseevent.button = event.button;
+			mousechange(2, f);
+		} catch(e) {
+		}
+	}
+
 	div.terminal = newTerminal();
 	div.terminal.onmouseenter = function(event) {
 		setCurrent(div);
 	}
+	div.terminal.onmousedown = function(event) {
+		setCurrent(div);
+		return false;
+	}
+	div.terminal.onmouseup = function(event) {
+		return false;
+	}
+	div.terminal.oncontextmenu = function(event) {
+		return false;
+	}
+
 	terminals[id] = div.terminal;
 
 	div.bg = document.createElement('div');
@@ -376,10 +447,9 @@ function newWindow(id, canclose) {
 		});
 	mkfile("/dev/hsys/" + id + "/winid", undefined, function(f, p) {
 			var data = '';
-			p.count = 0;
 			if (p.offset == 0) {
 				data += id;
-				p.count = data.length;
+				data = Array(12 - data.length).join(' ') + data + ' ';
 			}
 			respond(p, data);
 		});
@@ -532,6 +602,27 @@ i			} catch(err) {
 			} catch(err) {
 			}
 		}, function(f) { return div.bg.innerHTML.length });
+	var f = mkfile("/dev/hsys/" + id + "/mouse", undefined, function(f, p) {
+			var s, i;
+			if (f.mouse != f.f.mouse) {
+				f.mouse = f.f.mouse;
+				s = f.mouse.slice(1);
+				for (i in s) {
+					s[i] = String(s[i]).substring(0, 11);
+					if(s[i].length < 11)
+						s[i] = Array(12 - s[i].length).join(' ') + s[i];
+				}
+				s = f.mouse[0] + s.join(' ') + ' ';
+				respond(p, s);
+			} else {
+				var l = f.f.onmouse.length;
+				onflush(p.tag, function() { f.f.onmouse.splice(l, 1); });
+				f.f.onmouse.push(function() { f.f.read(f, p); });
+			}
+		}, function(f, p) {respond(p, -1);});
+	f.mouseevent = {clientX:0, clientY:0, button:0};
+	f.mouse = ['m', 0, 0, 0, 0];
+	f.onmouse = [];
 
 	div.terminal.div = div;
 	div.terminal.style.display = 'block';
@@ -569,11 +660,6 @@ i			} catch(err) {
 		if (div.buttonclicking)
 			return;
 		dragStart(id, event.touches[0].screenX, event.touches[0].screenY);
-	}
-
-	div.onmousedown = function(event) {
-		raiseWindow(id);
-		setCurrent(div);
 	}
 
 	div.ontouchstart = function(event) {
@@ -713,7 +799,7 @@ function showWindow(id) {
 function resizeCompute(div) {
 	var width = div.style.width.replace(/px$/, '');
 	var height = div.style.height.replace(/px$/, '') - 30;
-	var f, n;
+	var f;
 
 	div.titleBar.style.width = width + 'px';
 	div.terminal.style.width = width + 'px';
@@ -722,17 +808,10 @@ function resizeCompute(div) {
 	div.bg.style.height = height + 'px';
 
 	try {
-		f = lookupfile("/dev/hsys/" + div.id + "/draw/new", 1);
-		if (f.draw.nctl > 0) {
-			f.draw.canvas.height = height;
-			f.draw.canvas.width = width;
-			f.draw.disp.r[2] = width;
-			f.draw.disp.r[3] = height;
-			f.draw.disp.clipr = f.draw.disp.r;
-			f.draw.mouse = ['r', width, height, 0, new Date().getTime() - f.draw.starttime];
-			while(f.draw.onmouse.length != 0)
-				f.draw.onmouse.shift()();
-		}
+		f = lookupfile("/dev/hsys/" + div.id + "/mouse", 1);
+		f.mouse = ['r', width, height, mouse[3], Date.now() - starttime];
+		while(f.onmouse.length > 0)
+			f.onmouse.shift()();
 	} catch(e) {
 	}
 }
