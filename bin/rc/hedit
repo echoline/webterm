@@ -2,7 +2,14 @@
 
 fn sigint {
 	echo -n > /dev/innerHTML
-	echo 'rmfile("/hedit'^$pid^'");' > /dev/js
+	{
+		echo 'hedit'^$pid^'log = undefined;'
+		echo 'hedit'^$pid^'sent = undefined;'
+		echo 'hedit'^$pid^'read = undefined;'
+		echo 'hedit'^$pid^'io = undefined;'
+		echo 'hedit'^$pid^'op = undefined;'
+		echo 'rmfile("/hedit'^$pid^'");'
+	} > /dev/js
 	label `{cat /dev/winid}
 }
 
@@ -13,11 +20,11 @@ if (test $#* -gt 0)
 fn load {
 {
 	echo '<table style="width:100%; height:100%;"><tbody><tr><td>filename:</td><td width="100%">'
-	echo '<input style="width:90%" id="heditfile'^$pid^'" type="text" value="'^$"filename^'" spellcheck="false"/></td>'
+	echo '<input style="width:99%" id="heditfile'^$pid^'" type="text" value="'^$"filename^'" spellcheck="false"/></td>'
 	echo '<td><input type="button" value="open" onclick="javascript:hedit'^$pid^'op(''open'',document.getElementById(''heditfile'^$pid^''').value);"/></td>'
 	echo '<td><input type="button" value="save" onclick="javascript:hedit'^$pid^'op(''save'',document.getElementById(''heditfile'^$pid^''').value);"/></td></tr>'
 	echo '<tr style="height:100%"><td colspan="4" style="height:100%">'
-	echo '<textarea style="width:100%; height:100%;" spellcheck="false"/>'
+	echo '<textarea style="width:99%; height:100%;" spellcheck="false" onkeydown="javascript:if(event.which == 9) { var pos = this.selectionStart; this.value = this.value.substring(0, this.selectionStart) + String.fromCharCode(9) + this.value.substring(this.selectionEnd); this.selectionStart = this.selectionEnd = pos + 1; return false; }"/>'
 	echo '</textarea></td></tr></tbody></table>'
 } > /dev/innerHTML
 

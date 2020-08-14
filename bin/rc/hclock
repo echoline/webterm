@@ -2,9 +2,6 @@
 
 fn sigint {
 	running=0
-	sleep 1
-	label $"l
-	echo -n > /dev/innerHTML
 }
 
 ifs='
@@ -53,7 +50,7 @@ fn clockhands {
 
 	rad=`{ echo '2*3.14159/60 * '$t(3) | hoc }
 	echo -n `{ echo '20 + sin('`{ echo -n $rad }') * 15' | hoc} > /dev/dom/0/children/13/children/0/attributes/x2 &
-	echo -n `{ echo '20 - cos('`{ echo -n $rad }') * 10' | hoc} > /dev/dom/0/children/13/children/0/attributes/y2 &
+	echo -n `{ echo '20 - cos('`{ echo -n $rad }') * 15' | hoc} > /dev/dom/0/children/13/children/0/attributes/y2 &
 
 	sec=`{ echo $t(3) | hoc }
 
@@ -68,8 +65,6 @@ fn clockhands {
 	}
 
 	lastsec=$sec
-
-	echo > /dev/null
 }
 
 running=1
@@ -77,4 +72,4 @@ lastsec=100
 l=`"{ cat /dev/label }
 clockface > /dev/innerHTML
 clockhands
-while(~ $running 1 && sleep 1) { clockhands & date > /dev/label & }
+rc -c '{ while(~ $running 1 && sleep 1) { clockhands & date > /dev/label & } }; echo -n > /dev/innerHTML; echo $"l > /dev/label;' >[2]/dev/null
