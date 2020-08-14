@@ -31,11 +31,6 @@ fn clockface {
 	rad=`{ echo '2*3.14159/60 * '$t(2) | hoc }
 	echo '<line x1="20" y1="20" x2="'^`{ echo '20 + sin('^`{ echo -n $rad }') * 15' | hoc}^'" y2="'^`{ echo '20 - cos('^`{ echo -n $rad }') * 15' | hoc}^'" stroke="#000" />'
 	echo '</g>'
-
-	echo '<g>'
-	rad=`{ echo '2*3.14159/60 * '$t(3) | hoc }
-	echo '<line x1="20" y1="20" x2="'^`{ echo '20 + sin('^`{ echo -n $rad }') * 15' | hoc}^'" y2="'^`{ echo '20 - cos('^`{ echo -n $rad }') * 15' | hoc}^'" stroke="#D00" />'
-	echo '</g>'
 	
 	echo '<circle cx="20" cy="20" r="0.7" />'
 	echo '</svg>'
@@ -48,35 +43,26 @@ fn clockhands {
 	t=`{date -t | sed 's,^.*T,,
 					s,-.*$,,'}
 
-	rad=`{ echo '2*3.14159/60 * '$t(3) | hoc }
-	echo -n `{ echo '20 + sin('`{ echo -n $rad }') * 15' | hoc} > /dev/dom/0/children/13/children/0/attributes/x2 &
-	echo -n `{ echo '20 - cos('`{ echo -n $rad }') * 15' | hoc} > /dev/dom/0/children/13/children/0/attributes/y2 &
-
-	sec=`{ echo $t(3) | hoc }
 	hr=`{ echo $t(1) | hoc }
 
-	if (test $lastsec -gt $sec) {
-		if (test $lasthr -gt $hr) {
-			date | awk '{ print $1, $2, $3, $6 }' > /dev/label
-		}
-		lasthr=$hr
-
-		rad=`{ echo '2*3.14159/12 * ('$t(1)' + '$t(2)'/60)' | hoc }
-		echo -n `{ echo '20 + sin('`{ echo -n $rad }') * 10' | hoc} > /dev/dom/0/children/12/children/0/attributes/x2 &
-		echo -n `{ echo '20 - cos('`{ echo -n $rad }') * 10' | hoc} > /dev/dom/0/children/12/children/0/attributes/y2 &
-
-		rad=`{ echo '2*3.14159/60 * '$t(2) | hoc }
-		echo -n `{ echo '20 + sin('`{ echo -n $rad }') * 15' | hoc} > /dev/dom/0/children/12/children/1/attributes/x2 &
-		echo -n `{ echo '20 - cos('`{ echo -n $rad }') * 15' | hoc} > /dev/dom/0/children/12/children/1/attributes/y2 &
+	if (test $lasthr -gt $hr) {
+		date | awk '{ print $1, $2, $3, $6 }' > /dev/label
 	}
+	lasthr=$hr
 
-	lastsec=$sec
+	rad=`{ echo '2*3.14159/12 * ('$t(1)' + '$t(2)'/60)' | hoc }
+	echo -n `{ echo '20 + sin('`{ echo -n $rad }') * 10' | hoc} > 12/children/0/attributes/x2 &
+	echo -n `{ echo '20 - cos('`{ echo -n $rad }') * 10' | hoc} > 12/children/0/attributes/y2 &
+
+	rad=`{ echo '2*3.14159/60 * '$t(2) | hoc }
+	echo -n `{ echo '20 + sin('`{ echo -n $rad }') * 15' | hoc} > 12/children/1/attributes/x2 &
+	echo -n `{ echo '20 - cos('`{ echo -n $rad }') * 15' | hoc} > 12/children/1/attributes/y2 &
 }
 
 running=1
-lastsec=100
 lasthr=100
 l=`"{ cat /dev/label }
 clockface > /dev/innerHTML
+cd /dev/dom/0/children
 clockhands
-rc -c '{ while(~ $running 1 && sleep 1) { clockhands } }; echo -n > /dev/innerHTML; echo $"l > /dev/label;' >[2]/dev/null
+rc -c '{ while(~ $running 1 && sleep 30) { clockhands } }; echo -n > /dev/innerHTML; echo $"l > /dev/label;' >[2]/dev/null
