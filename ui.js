@@ -151,10 +151,9 @@ function startui() {
 		},
 		function(f, p) {
 			var data = '';
-			p.count = 0;
 			if (p.offset == 0) {
-				data = fromutf8(f.window.id);
-				p.count = data.length;
+				data += f.window.id;
+				data = Array(12 - data.length).join(' ') + data + ' ';
 			}
 			respond(p, data);
 		}, undefined,

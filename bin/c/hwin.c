@@ -88,10 +88,10 @@ threadmain(int argc, char **argv) {
 	newfd = open("/dev/hsys/new", OREAD);
 	if (newfd < 0)
 		exits("open new");
-	if ((r = read(newfd, winid, 15)) <= 0)
+	if ((r = readn(newfd, winid, 12)) != 12)
 		exits("read new");
 	winid[r] = '\0';
-	snprint(buf, 255, "/dev/hsys/%s", winid);
+	snprint(buf, 255, "/dev/hsys/%d", atoi(winid));
 	bind(buf, "/dev", MBEFORE|MCREATE);
 	close(0);
 	if(open("/dev/cons", OREAD) < 0){
