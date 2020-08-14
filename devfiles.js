@@ -2,7 +2,7 @@ mkdir("/dev");
 mkfile("/dev/cons", undefined, function(f, p) { term.readterminal(p.count, function(l) {respond(p, l);}, p.tag); }, function(f, p) { term.writeterminal(p.data); respond(p, -1); });
 mkfile("/dev/consctl", undefined, invalidop, function(f, p) { if(p.data.substr(0, 5) == "rawon") rawmode = true; if(p.data.substr(0, 5) == "rawoff") rawmode = false; respond(p, -1); }, function(f) { rawmode = false; });
 mkfile("/dev/cpunote", undefined, function(f, p) { term.onnote.push(function(l) { respond(p, l);}); });
-mkfile("/dev/js", function(f, p){ f.text = ""; }, undefined, function(f, p) { f.text += p.data; respond(p, -1); }, function(f, p) { eval(f.text); });
+mkfile("/dev/js", function(f, p){ f.text = ""; }, undefined, function(f, p) { f.text += p.data; respond(p, -1); }, function(f, p) { try { eval(f.text); } catch (err) { console.log(''+err); } });
 var starttime;
 mkfile("/dev/bintime", undefined, function(f, p) {
 	var now = Date.now();

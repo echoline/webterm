@@ -1,0 +1,20 @@
+#!/bin/rc
+
+if (! ~ $#* 1) {
+	echo usage: background file/url/color
+	exit
+}
+
+{
+	if (~ $"1 black brown red orange yellow green blue purple white '#'[0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f] '#'[0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f])
+		echo 'document.body.style.background="'^$"1^'";'
+	if not {
+		echo -n 'document.body.style.background=''url("'
+		if (~ $"1 http://* https://*)
+			echo -n $"1
+		if not
+			echo -n 'data:text/css;base64,'^`{ enc64 < $"1 }
+		echo '") no-repeat center center fixed'';'
+		echo 'document.body.style.backgroundSize="cover";'
+	}
+} > /dev/js

@@ -51,12 +51,12 @@ fn clockhands {
 	lasthr=$hr
 
 	rad=`{ echo '2*3.14159/12 * ('$t(1)' + '$t(2)'/60)' | hoc }
-	echo -n `{ echo '20 + sin('`{ echo -n $rad }') * 10' | hoc} > 12/children/0/attributes/x2 &
-	echo -n `{ echo '20 - cos('`{ echo -n $rad }') * 10' | hoc} > 12/children/0/attributes/y2 &
+	echo -n `{ echo '20 + sin('`{ echo -n $rad }') * 10' | hoc} > 12/children/0/attributes/x2
+	echo -n `{ echo '20 - cos('`{ echo -n $rad }') * 10' | hoc} > 12/children/0/attributes/y2
 
 	rad=`{ echo '2*3.14159/60 * '$t(2) | hoc }
-	echo -n `{ echo '20 + sin('`{ echo -n $rad }') * 15' | hoc} > 12/children/1/attributes/x2 &
-	echo -n `{ echo '20 - cos('`{ echo -n $rad }') * 15' | hoc} > 12/children/1/attributes/y2 &
+	echo -n `{ echo '20 + sin('`{ echo -n $rad }') * 15' | hoc} > 12/children/1/attributes/x2
+	echo -n `{ echo '20 - cos('`{ echo -n $rad }') * 15' | hoc} > 12/children/1/attributes/y2
 }
 
 running=1

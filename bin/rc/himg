@@ -3,7 +3,6 @@
 fn sigint {
 	echo -n > /dev/innerHTML
 	label $"l
-	echo 'win('^$id^').terminal.focus()' > /dev/js
 }
 
 id=`{ cat /dev/winid }
@@ -23,6 +22,5 @@ if (! ~ $#* 1) {
 	echo '"/>'
 } > /dev/innerHTML
 label $"1
-echo 'win('^$id^').titleBar.focus()' > /dev/js
 cat
 

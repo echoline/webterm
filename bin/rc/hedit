@@ -7,10 +7,31 @@ fn sigint {
 		echo 'hedit'^$pid^'sent = undefined;'
 		echo 'hedit'^$pid^'read = undefined;'
 		echo 'hedit'^$pid^'io = undefined;'
-		echo 'hedit'^$pid^'op = undefined;'
 		echo 'rmfile("/hedit'^$pid^'");'
 	} > /dev/js
-	label `{cat /dev/winid}
+	label $"ol
+}
+
+fn sigexit {
+	sigint
+}
+
+fn openfile {
+	if (test -d $"filename) {
+		lc $"filename >[2=1] > /dev/dom/0/children/0/children/1/children/0/children/0/value && echo $"filename directory
+	}
+	if not {
+		cp $"filename /dev/dom/0/children/0/children/1/children/0/children/0/value >[2=1] && echo $"filename opened
+	}
+}
+
+fn savefile {
+	if (test -d $"filename) {
+		echo $"filename is a directory
+	}
+	if not {
+		cp /dev/dom/0/children/0/children/1/children/0/children/0/value $"filename >[2=1] && echo $"filename saved
+	}
 }
 
 filename=''
@@ -20,66 +41,65 @@ if (test $#* -gt 0)
 fn load {
 {
 	echo '<table style="width:100%; height:100%;"><tbody><tr><td>filename:</td><td width="100%">'
-	echo '<input style="width:99%" id="heditfile'^$pid^'" type="text" value="'^$"filename^'" spellcheck="false"/></td>'
-	echo '<td><input type="button" value="open" onclick="javascript:hedit'^$pid^'op(''open'',document.getElementById(''heditfile'^$pid^''').value);"/></td>'
-	echo '<td><input type="button" value="save" onclick="javascript:hedit'^$pid^'op(''save'',document.getElementById(''heditfile'^$pid^''').value);"/></td></tr>'
-	echo '<tr style="height:100%"><td colspan="4" style="height:100%">'
+	echo '<input style="width:98%" id="heditfile'^$pid^'" type="text" value="'^$"filename^'" spellcheck="false"/></td>'
+	echo '<td><input type="button" value="open" onclick="javascript:hedit'^$pid^'io(''open''+document.getElementById(''heditfile'^$pid^''').value);"/></td>'
+	echo '<td><input type="button" value="save" onclick="javascript:hedit'^$pid^'io(''save''+document.getElementById(''heditfile'^$pid^''').value);"/></td>'
+	echo '<td><input type="button" value="quit" onclick="javascript:hedit'^$pid^'io(''quit'');"/></td></tr>'
+	echo '<tr style="height:100%"><td colspan="5" style="height:100%">'
 	echo '<textarea style="width:99%; height:100%;" spellcheck="false" onkeydown="javascript:if(event.which == 9) { var pos = this.selectionStart; this.value = this.value.substring(0, this.selectionStart) + String.fromCharCode(9) + this.value.substring(this.selectionEnd); this.selectionStart = this.selectionEnd = pos + 1; return false; }"/>'
 	echo '</textarea></td></tr></tbody></table>'
 } > /dev/innerHTML
 
-if (! ~ $"filename '' && test -f $"filename)
-	cat $"filename > /dev/hsys/^`{cat /dev/winid}^/dom/0/children/0/children/1/children/0/children/0/value
+if (! ~ $"filename '')
+	label `{ openfile }
+if not
+	label hedit
 
 {
 	echo 'hedit'^$pid^'log = "";'
 	echo 'hedit'^$pid^'sent = 0;'
 	echo 'hedit'^$pid^'read = [];'
-	echo 'mkdir("/hedit'^$pid^'");'
-	echo 'mkfile("/hedit'^$pid^'/io", undefined,function(f, p) {'
+	echo 'mkfile("/hedit'^$pid^'", undefined,function(f, p) {'
 	echo '	hedit'^$pid^'read.push(p);'
 	echo '});'
-	echo 'hedit'^$pid^'io = function(p) {'
-	echo '	var buf = hedit'^$pid^'log.substring(p.offset, p.offset+p.count);'
-	echo '	respond(p, buf);'
-	echo '	hedit'^$pid^'sent += buf.length;'
-	echo '}'
-	echo 'hedit'^$pid^'op = function(op, filename) {'
-	echo '	hedit'^$pid^'log += op + filename + "\n"'
+	echo 'hedit'^$pid^'io = function(s) {'
+	echo '	hedit'^$pid^'log += s + "\n"'
 	echo '	while (hedit'^$pid^'read.length > 0 && hedit'^$pid^'sent < hedit'^$pid^'log.length) {'
-	echo '		hedit'^$pid^'io(hedit'^$pid^'read.shift());'
+	echo '		var p = hedit'^$pid^'read.shift();'
+	echo '		var buf = hedit'^$pid^'log.substring(p.offset, p.offset+p.count);'
+	echo '		respond(p, buf);'
+	echo '		hedit'^$pid^'sent += buf.length;'
 	echo '	}'
 	echo '}'
 } > /dev/js
 }
 
-
-label $"filename
+ol=`"{cat /dev/label}
 load
+running=1
 
-cat /mnt/term/hedit$pid/io | {
-while (test -f /mnt/term/hedit$pid/io) {
+cat /mnt/term/hedit$pid | {
+while (~ $running 1 && test -f /mnt/term/hedit$pid) {
 	line=`{read}
 	op=`"{echo $line | dd -bs 1 -count 4 >[2]/dev/null }
 	filename=`"{echo -n $line | dd -bs 1 -skip 4 >[2]/dev/null }
+	if (~ $"op quit) {
+		running=0
+		exit
+	}
 	if (! ~ $"filename '') {
-		echo -n $"filename^' '
 		if (~ $"op open) {
-			if (test -f $"filename) {
-				cat $"filename > /dev/hsys/^`{cat /dev/winid}^/dom/0/children/0/children/1/children/0/children/0/value
-				echo opened
-			}
-			if not {
-				echo -n > /dev/hsys/^`{cat /dev/winid}^/dom/0/children/0/children/1/children/0/children/0/value
-				echo does not exist
-			}
+			openfile
 		}
 		if (~ $"op save) {
-			cat /dev/hsys/^`{cat /dev/winid}^/dom/0/children/0/children/1/children/0/children/0/value > $"filename
-			echo saved
+			savefile
 		}
+	}
+	if not {
+		echo blank filename
 	}
 }
 } | { while(read > /dev/label) {} }
 
 sigint
+

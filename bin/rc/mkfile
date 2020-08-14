@@ -1,5 +1,0 @@
-all:
-
-install:
-	cp himg youtube iframe opb hclock $home/bin/rc/
-
