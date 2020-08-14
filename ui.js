@@ -68,8 +68,11 @@ function setCurrent(div) {
 	}
 	if (current.termhidden)
 		current.bg.focus();
-	else
+	else {
+		var top = current.terminal.scrollTop;
 		current.terminal.focus();
+		current.terminal.scrollTop = top;
+	}
 }
 
 var onnewwindow = undefined;
@@ -427,10 +430,8 @@ function newWindow(id, canclose) {
 	mkfile("/dev/hsys/" + id + "/label", undefined, function(f, p) {
 			try {
 				var data = '';
-				p.count = 0;
 				if (p.offset == 0) {
 					data = win(id).titleBar.getElementsByClassName('name')[0].innerHTML;
-					p.count = data.length;
 				}
 				respond(p, data);
 			} catch(err) {
@@ -566,7 +567,7 @@ i			} catch(err) {
 	mkdir("/dev/hsys/" + id + "/dom");
 	mkfile("/dev/hsys/" + id + "/innerHTML", function(f) {
 			try {
-				f.text = div.bg.innerHTML;
+				f.text = toutf8(div.bg.innerHTML);
 				if (f.mode & 0x10)
 					f.text = "";
 			} catch(err) {
@@ -591,7 +592,7 @@ i			} catch(err) {
 		function(f) {
 			try {
 				if (f.mode & 1) {
-					div.bg.innerHTML = f.text;
+					div.bg.innerHTML = fromutf8(f.text);
 					oshow(div.id, f.text.length? false: true);
 					mkdir("/dev/hsys/" + id + "/dom");
 					for (i = 0; i < div.bg.children.length; i++) {
@@ -809,7 +810,7 @@ function resizeCompute(div) {
 
 	try {
 		f = lookupfile("/dev/hsys/" + div.id + "/mouse", 1);
-		f.mouse = ['r', width, height, mouse[3], Date.now() - starttime];
+		f.mouse = ['r', width, height+30, mouse[3], Date.now() - starttime];
 		while(f.onmouse.length > 0)
 			f.onmouse.shift()();
 	} catch(e) {
@@ -821,7 +822,7 @@ function mkdomchildren(path, element) {
 
 	mkfile(path + "/innerHTML", function(f) {
 			try {
-				f.text = element.innerHTML;
+				f.text = toutf8(element.innerHTML);
 				if (f.mode & 0x10)
 					f.text = "";
 			} catch(err) {
@@ -846,7 +847,7 @@ function mkdomchildren(path, element) {
 		function(f) {
 			try {
 				if (f.mode & 1) {
-					element.innerHTML = f.text;
+					element.innerHTML = fromutf8(f.text);
 					mkdomchildren(path, element);
 				}
 			} catch(err) {
@@ -855,7 +856,7 @@ function mkdomchildren(path, element) {
 
 	mkfile(path + "/value", function(f) {
 			try {
-				f.text = element.value;
+				f.text = toutf8(element.value);
 				if (f.mode & 0x10)
 					f.text = "";
 			} catch(err) {
@@ -880,7 +881,7 @@ function mkdomchildren(path, element) {
 		function(f) {
 			try {
 				if (f.mode & 1) {
-					element.value = f.text;
+					element.value = fromutf8(f.text);
 				}
 			} catch(err) {
 			}
