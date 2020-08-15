@@ -143,7 +143,7 @@ function startui() {
 	}
 
 	mkdir("/dev/hsys");
-	mkfile("/dev/hsys/new", function(f, p) {
+	mkfile("/dev/hsys/new", function(f) {
 			var j;
 			for (j = 0; win(j) != undefined; j++);
 			f.window = newWindow(j, true);
@@ -245,12 +245,16 @@ function parsenewwctl(data) {
 			end = ';cd' + end;
 		} else if (args[i].charAt(0) != '-') {
 			line += ' ' + args.slice(i).join(' ');
-			break;
+			i = args.length-1;
 		} else if (args[i] == '-r')
 			i += 4;
-		else
+		else if (args[i] == '-dx' || args[i] == '-dy' ||
+				args[i] == '-minx' || args[i] == '-miny' ||
+				args[i] == '-maxx' || args[i] == '-maxy')
 			i++;
 	}
+	if (i != args.length)
+		throw "missing or bad wctl parameter";
 	line += end;
 	return line;
 }
@@ -302,9 +306,9 @@ function parsewctl(div, op, data) {
 		} else {
 			if (args[i] == '-noscroll')
 				div.terminal.scrollmode = false;
-			if (args[i] == '-scroll')
+			else if (args[i] == '-scroll')
 				div.terminal.scrollmode = true;
-			if (args[i] == '-hide')
+			else if (args[i] == '-hide')
 				hideWindow(div.id);
 		}
 	}
@@ -320,7 +324,12 @@ function parsewctl(div, op, data) {
 	 	div.style.left = minx + "px";
 	 	div.style.top = miny + "px";
 	 	div.style.width = width + "px";
-	 	div.style.height = height + "px";
+		if (!div.winhidden) {
+		 	div.style.height = height + "px";
+		} else {
+		 	div.style.height = "1.2em";
+			div.oldheight = height + "px";
+		}
 		resizeCompute(div);
 	}
 }
@@ -388,14 +397,14 @@ function newWindow(id, canclose) {
 					respond(p, l);
 				}, p.tag);
 			} catch(err) {
-				error9p(p.tag, err.message);
+				error9p(p.tag, err.toString());
 			}
 		},
 		function(f, p) {
 			try {
 				window.terminals[id].writeterminal(p.data); respond(p, -1);
 			} catch (err) {
-				error9p(p.tag, err.message);
+				error9p(p.tag, err.toString());
 			}
 		});
 	mkfile("/dev/hsys/" + id + "/consctl", undefined, undefined, function(f, p) {
@@ -406,14 +415,14 @@ function newWindow(id, canclose) {
 					terminals[id].rawmode = false;
 				respond(p, -1);
 			} catch(err) {
-				error9p(p.tag, err.message);
+				error9p(p.tag, err.toString());
 			}
 		},
 		function(f) {
 			try {
 				terminals[i].rawmode = false;
 			} catch(err) {
-				error9p(p.tag, err.message);
+				error9p(p.tag, err.toString());
 			}
 		});
 	mkfile("/dev/hsys/" + id + "/cpunote", undefined, function(f, p) {
@@ -423,49 +432,37 @@ function newWindow(id, canclose) {
 		});
 	mkfile("/dev/hsys/" + id + "/label", undefined, function(f, p) {
 			try {
-				var data = '';
-				if (p.offset == 0) {
-					data = win(id).titleBar.getElementsByClassName('name')[0].innerHTML;
-				}
-				respond(p, data);
+				data = toutf8(div.titleBar.getElementsByClassName('name')[0].innerHTML);
+				respond(p, data.substring(p.offset, p.offset+p.count));
 			} catch(err) {
-				error9p(p.tag, err.message);
+				error9p(p.tag, err.toString());
 			}
 		},
 		function(f, p) {
 			try {
-				win(id).titleBar.getElementsByClassName('name')[0].innerHTML = fromutf8(p.data);
+				div.titleBar.getElementsByClassName('name')[0].innerHTML = fromutf8(p.data);
 				respond(p, -1);
 			} catch (err) {
-				error9p(p.tag, err.message);
+				error9p(p.tag, err.toString());
 			}
 		});
 	mkfile("/dev/hsys/" + id + "/winid", undefined, function(f, p) {
-			var data = '';
-			if (p.offset == 0) {
-				data += id;
-				data = Array(12 - data.length).join(' ') + data + ' ';
-			}
-			respond(p, data);
+			data = id.toString();
+			data = Array(12 - data.length).join(' ') + data + ' ';
+			respond(p, data.substring(p.offset, p.offset+p.count));
 		});
-	mkfile("/dev/hsys/" + id + "/text", function(f, p) {
+	mkfile("/dev/hsys/" + id + "/text", function(f) {
 			try {
-				f.text = window.terminals[id].value.slice(0, window.terminals[id].value.length - 2);
+				f.text = toutf8(terminals[id].value.slice(0, terminals[id].value.length - 2));
 			} catch(err) {
-				return err.message;
+				return err.toString();
 			}
 		},
 		function(f, p) {
 			try {
-				var data = f.text;
-				var runlen = f.text.length - p.offset;
-				if (p.count > runlen)
-					p.count = runlen;
-				data = data.slice(p.offset, p.count);
-				data = toutf8(data);
-				respond(p, data);
+				respond(p, f.test.substring(p.offset, p.offset+p.count));
 i			} catch(err) {
-				error9p(p.tag, err.message);
+				error9p(p.tag, err.toString());
 			}
 		});
 	div.onwctlread = [];
@@ -496,7 +493,7 @@ i			} catch(err) {
 				if (p.offset == 0)
 					div.onwctlread.shift()();
 			} catch(err) {
-				error9p(p.tag, err.message);
+				error9p(p.tag, err.toString());
 			}
 		},
 		function(f, p) {
@@ -551,7 +548,7 @@ i			} catch(err) {
 					throw "unrecognized wctl command";
 				respond(p, -1);
 			} catch(err) {
-				error9p(p.tag, err + "");
+				error9p(p.tag, err.toString());
 			}
 		},
 		function(f) {
@@ -565,14 +562,14 @@ i			} catch(err) {
 				if (f.mode & 0x10)
 					f.text = "";
 			} catch(err) {
-				return err.message;
+				return err.toString();
 			}
 		},
 		function(f, p) {
 			try {
 				respond(p, f.text.substring(p.offset, p.offset+p.count));
 			} catch(err) {
-				error9p(p.tag, err.message);
+				error9p(p.tag, err.toString());
 			}
 		},
 		function(f, p) {
@@ -580,7 +577,7 @@ i			} catch(err) {
 				f.text = f.text.replaceAt(p.offset, p.data);
 				respond(p, p.data.length);
 			} catch(err) {
-				error9p(p.tag, err.message);
+				error9p(p.tag, err.toString());
 			}
 		},
 		function(f) {
@@ -771,6 +768,7 @@ function hideWindow(id) {
 	div.bg.style.display = 'none';
 	div.bottom.style.display = 'none';
 	div.resizeHandle.style.display = 'none';
+	resizeCompute(div);
 	button.getElementsByTagName('span')[0].innerHTML = '<strong>&uarr;</strong>';
 	button.href = 'javascript:showWindow(\'' + escape(id) + '\');';
 	if (div.onwctlread.length > 0)
@@ -788,6 +786,7 @@ function showWindow(id) {
 	div.resizeHandle.style.display = 'block';
 	div.bg.style.display = 'block';
 	div.bottom.style.display = 'block';
+	resizeCompute(div);
 	button.getElementsByTagName('span')[0].innerHTML = '<strong>&darr;</strong>';
 	button.href = 'javascript:hideWindow(\'' + escape(id) + '\');';
 	if (div.onwctlread.length > 0)
@@ -833,14 +832,14 @@ function mkdomchildren(path, element) {
 				if (f.mode & 0x10)
 					f.text = "";
 			} catch(err) {
-				return err.message;
+				return err.toString();
 			}
 		},
 		function(f, p) {
 			try {
 				respond(p, f.text.substring(p.offset, p.offset+p.count));
 			} catch(err) {
-				error9p(p.tag, err.message);
+				error9p(p.tag, err.toString());
 			}
 		},
 		function(f, p) {
@@ -848,7 +847,7 @@ function mkdomchildren(path, element) {
 				f.text = f.text.replaceAt(p.offset, p.data);
 				respond(p, p.data.length);
 			} catch(err) {
-				error9p(p.tag, err.message);
+				error9p(p.tag, err.toString());
 			}
 		},
 		function(f) {
@@ -867,14 +866,14 @@ function mkdomchildren(path, element) {
 				if (f.mode & 0x10)
 					f.text = "";
 			} catch(err) {
-				return err.message;
+				return err.toString();
 			}
 		},
 		function(f, p) {
 			try {
 				respond(p, f.text.substring(p.offset, p.offset+p.count));
 			} catch(err) {
-				error9p(p.tag, err.message);
+				error9p(p.tag, err.toString());
 			}
 		},
 		function(f, p) {
@@ -882,7 +881,7 @@ function mkdomchildren(path, element) {
 				f.text = f.text.replaceAt(p.offset, p.data);
 				respond(p, p.data.length);
 			} catch(err) {
-				error9p(p.tag, err.message);
+				error9p(p.tag, err.toString());
 			}
 		},
 		function(f) {
