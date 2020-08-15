@@ -1,6 +1,6 @@
 </$objtype/mkfile
 
-all: hwin enc64
+all: hwin enc64 hedit
 
 hwin: hwin.$O
 	$O^l -o hwin hwin.$O
@@ -14,9 +14,15 @@ enc64: enc64.$O
 enc64.$O: enc64.c
 	$O^c enc64.c
 
-install: hwin enc64
-	cp hwin enc64 $home/bin/$objtype/
+hedit: hedit.$O
+	$O^l -o hedit hedit.$O
+
+hedit.$O: hedit.c
+	$O^c hedit.c
+
+install: hwin enc64 hedit
+	cp hwin enc64 hedit $home/bin/$objtype/
 
 clean:
-	rm -f hwin.[$OS] enc64.[$OS] hwin enc64
+	rm -f hwin.[$OS] enc64.[$OS] hedit.[$OS] hwin enc64 hedit
 

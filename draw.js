@@ -193,6 +193,8 @@ function drawallocate(c, p) {
 //	document.body.appendChild(i.canvas);
 	i.id = p.id;
 	i.refresh = p.refresh;
+	if (i.refresh != 0 && i.refresh != 1)
+		throw "unknown refresh method";
 	i.clipr = runpack(p.clipr);
 	i.chan = p.chan;
 	a = str2arr(p.chan);
@@ -202,6 +204,10 @@ function drawallocate(c, p) {
 		i.screen = draw.screens[p.screenid];
 		if(i.screen == undefined) return "id " + p.screenid + " not in use";
 		i.screen.win.push(i);
+		if (i.refresh == 1) {
+			i.layer = {delta:[0,0], screen:i.screen};
+			i.layer.save = allocimg(runpack(p.r), [p.color.charCodeAt(3), p.color.charCodeAt(2), p.color.charCodeAt(1), p.color.charCodeAt(0)], p.repl);
+		}
 	}
 	c.imgs[p.id] = i;
 }
@@ -254,6 +260,8 @@ function ellipse(c, p, fill) {
 	}
 	dst.ctx.strokeStyle = 'rgb(' + color[0] + ',' + color[1] + ',' + color[2] + ')';
 	dst.ctx.stroke();
+
+	dstflush(dst);
 }
 
 function drawfillellipse(c, p) {
@@ -282,6 +290,8 @@ function drawline(c, p) {
 	dst.ctx.lineWidth = 1 + 2 * p.thick;
 	dst.ctx.strokeStyle = 'rgb(' + color[0] + ',' + color[1] + ',' + color[2] + ')';
 	dst.ctx.stroke();
+
+	dstflush(dst);
 }
 
 function drawload(c, p) {
@@ -390,6 +400,8 @@ function drawdraw(c, p) {
 		return "id " + p.srcid + " not in use";
 	mask = c.imgs[p.maskid];
 	memdraw(dst, dstr, src, punpack(p.srcp), mask, punpack(p.maskp), 11);
+
+	dstflush(dst);
 }
 
 function screenflush(s) {
@@ -400,14 +412,37 @@ function screenflush(s) {
 		screenflush(s.image.screen);
 }
 
+var flushrect = [-10000, -10000, 10000, 10000];
+
+function dstflush(dst) {
+	var l;
+	var r = dst.r.concat([]);
+
+	if (!dst || !(l = dst.layer))
+		return;
+
+	do {
+		r = offset(r, l.delta);
+		l = l.screen.image.layer;
+	} while(l);
+
+	flushrect = combine(flushrect, r);
+}
+
 function drawflush(c, p) {
 	var id;
+
+	if (flushrect[0] > flushrect[2])
+		return;
+
 	for (id in c.draw.screens) {
 		var s = c.draw.screens[id];
 		if (!s)
 			continue;
 		screenflush(s);
 	}
+
+	flushrect = [10000, 10000, -10000, -10000];
 }
 
 function mkdrawfiles(w) {

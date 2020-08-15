@@ -620,7 +620,7 @@ i			} catch(err) {
 	f.onmouse = [];
 	f.div = div;
 
-	mkdrawfiles(div);
+	//mkdrawfiles(div);
 
 	div.terminal.div = div;
 	div.terminal.style.display = 'block';
@@ -821,7 +821,6 @@ function resizeCompute(div) {
 			f.draw.disp.clipr = f.draw.disp.r;
 		}
 	} catch(e) {
-		console.log(e+'');
 	}
 }
 

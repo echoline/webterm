@@ -33,6 +33,10 @@ function intersect(r, s) {
 	return [max(r[0], s[0]), max(r[1], s[1]), min(r[2], s[2]), min(r[3], s[3])];
 }
 
+function combine(r, s) {
+	return [min(r[0], s[0]), min(r[1], s[1]), max(r[2], s[2]), max(r[3], s[3])];
+}
+
 function offset(r, p) {
 	return [r[0] + p[0], r[1] + p[1], r[2] + p[0], r[3] + p[1]];
 }
@@ -107,7 +111,7 @@ const alphacalc = [
 
 defmask = allocimg([0,0,1,1], [255,255,255,255], 1);
 
-function memdraw(dst, r, src, sp, mask, mp, op) {
+function memimagedraw(dst, r, src, sp, mask, mp, op) {
 	var spr, dx, dy, sx, sy, mx, my, d, s, m, doff, soff, moff;
 
 	spr = [sp[0] + r[0], sp[1] + r[1]];
@@ -148,6 +152,61 @@ function memdraw(dst, r, src, sp, mask, mp, op) {
 	}
 
 	dst.ctx.putImageData(d, 0, 0);
+}
+
+function memdraw(dst, r, src, sp, mask, mp, op) {
+	var srcr = src.r.concat([]);
+	sp = [sp[0], sp[1]];
+	r = [r[0], r[1], r[2], r[3]];
+
+	memimagedraw(dst, r, src, sp, mask, mp, op);
+	return;
+
+	if (!mask) {
+		mask = defmask;
+		mp = [0,0];
+	}
+
+	if (mask.layer)
+		return;
+
+do {
+	if (!dst.layer && !src.layer) {
+		memimagedraw(dst, r, src, sp, mask, mp, op);
+		return;
+	}
+
+	if (dst.layer)
+		r = offset(r, dst.layer.delta);
+
+	if (src.layer) {
+		sp[0] += src.layer.delta[0];
+		sp[1] += src.layer.delta[1];
+		srcr = offset(srcr, src.layer.delta);
+	}
+
+	if (dst.layer && dst === src) {
+		if (!dst.layer.save)
+			return;
+		dst = dst.layer.save;
+		r = offset(r, [-dst.layer.delta[0], -dst.layer.delta[1]]);
+		src = dst.layer.save;
+		sp = [src.r.min.x - src.layer.delta[0], src.r.min.y - src.layer.delta[1]];
+		memimagedraw(dst, r, src, sp, mask, mp, op);
+		return;
+	}
+
+	if (src.layer) {
+		if (!src.layer.save)
+			return;
+		sp[0] -= src.layer.delta[0];
+		sp[1] -= src.layer.delta[1];
+		srcr = offset(srcr, [-src.layer.delta[0], -src.layer.delta[1]]);
+		src = src.layer.save;
+	}
+} while(!dst.layer);
+
+	memimagedraw(dst.layer.save, r, src, sp, mask, mp, op);
 }
 
 function pixelbits(data, offset, depth) {
