@@ -143,14 +143,14 @@ savefile(char *filename)
 
 	out = create(filename, OWRITE|OTRUNC, 0664);
 	if (out < 0)
-		info = smprint("open: %r");
+		info = smprint("save: %r");
 	else {
 		while((r = read(in, buf, BUFSIZE)) > 0) {
 			if ((r = write(out, buf, r)) < 0)
 				break;
 		}
 		if (r < 0)
-			info = smprint("write: %r");
+			info = smprint("save: %r");
 		else
 			info = smprint("saved");
 
@@ -217,10 +217,11 @@ openfile(char *filename)
 		info = smprint("open: %r");
 	else {
 		while((r = read(in, buf, BUFSIZE)) > 0) {
-			write(out, buf, r);
+			if ((r = write(out, buf, r)) < 0)
+				break;
 		}
 		if (r < 0)
-			info = smprint("read: %r");
+			info = smprint("open: %r");
 		else
 			info = smprint("opened");
 
