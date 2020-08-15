@@ -173,9 +173,12 @@ openfile(char *filename)
 {
 	int in, out;
 	char *info;
-	int r, i;
+	int r, i, l, k;
 	char buf[BUFSIZE];
 	Dir *dir;
+	char *s;
+	char m;
+	int *sorted;
 
 	readfilename(filename);
 
@@ -196,14 +199,47 @@ openfile(char *filename)
 				return;
 			}
 			if((r = dirreadall(in, &dir)) > 0) {
+				s = calloc(1, 1);
+				if (s == nil)
+					sysfatal("calloc: %r");
+				sorted = calloc(r, sizeof(int));
+				if (sorted == nil)
+					sysfatal("calloc: %r");
+				for (i = 0; i < r; i++)
+					sorted[i] = i;
 				for (i = 0; i < r; i++) {
-					fprint(out, "%s", dir[i].name);
-					if (dir[i].mode & DMDIR)
-						fprint(out, "/");
-					else if(dir[i].mode & DMEXEC)
-						fprint(out, "*");
-					fprint(out, "\n");
+					for (k = i + 1; k < r; k++) {
+						if (strcmp(dir[sorted[i]].name, dir[sorted[k]].name) > 0) {
+							l = sorted[i];
+							sorted[i] = sorted[k];
+							sorted[k] = l;
+						}
+					}
 				}
+				l = 1;
+				for (i = 0; i < r; i++) {
+					m = 0;
+					k = strlen(dir[sorted[i]].name);
+					l += k;
+					s = realloc(s, l + 4);
+					if (s == nil)
+						sysfatal("realloc: %r");
+					snprint(s + l - k - 1, k + 1, "%s", dir[sorted[i]].name);
+					if (dir[sorted[i]].mode & DMDIR) {
+						l++;
+						m = '/';
+					} else if (dir[sorted[i]].mode & DMEXEC) {
+						l++;
+						m = '*';
+					}
+					if (m)
+						snprint(s + l - 2, 2, "%c", m);
+					l++;
+					snprint(s + l - 2, 2, "\n");
+				}
+				fprint(out, "%s", s);
+				free(s);
+				free(sorted);
 				free(dir);
 			}
 			close(in);

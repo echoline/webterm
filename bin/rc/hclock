@@ -8,6 +8,7 @@ ifs='
  :'
 
 fn clockface {
+	echo '<span style="position:absolute;width:100%;"><input type="button" value="quit" style="float:right;" onclick="javascript:this.parentNode.parentNode.parentNode.terminal.addchar(127);"/></span>'
 	echo '<svg viewBox="0 0 40 40" style="max-width:100%;max-height:100%;display:block;margin:auto;">'
 	echo '<circle cx="2" cy="20" r="1" />'
 	echo '<circle cx="4.412" cy="11" r="1" />'
@@ -63,6 +64,8 @@ running=1
 lasthr=100
 l=`"{ cat /dev/label }
 clockface > /dev/innerHTML
-cd /dev/dom/0/children
+cd /dev/dom/1/children
 clockhands
 rc -c '{ while(~ $running 1 && sleep 30) { clockhands } }; echo -n > /dev/innerHTML; echo $"l > /dev/label;' >[2]/dev/null
+sigint
+
