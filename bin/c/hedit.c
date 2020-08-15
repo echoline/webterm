@@ -31,13 +31,14 @@ load(char *filename)
 		"}\n";
 
 	char *html = "<table style=\"width:100%%; height:100%%;\"><tbody><tr><td>filename:</td><td width=\"100%%\">\n"
-		"<input style=\"width:98%%\" type=\"text\" value=\"%s\" spellcheck=\"false\"/></td>\n"
+		"<input style=\"width:98%%\" type=\"text\" value=\"%s\" spellcheck=\"false\" id=\"filename%s\"/></td>\n"
 		"<td><input type=\"button\" value=\"open\" onclick=\"javascript:hedit%s('open');\"/></td>\n"
 		"<td><input type=\"button\" value=\"save\" onclick=\"javascript:hedit%s('save');\"/></td>\n"
 		"<td><input type=\"button\" value=\"quit\" onclick=\"javascript:hedit%s('quit');\"/></td></tr>\n"
 		"<tr style=\"height:100%%\"><td colspan=\"5\" style=\"height:100%%\">\n"
-		"<textarea style=\"width:99%%; height:100%%;\" spellcheck=\"false\" onkeydown=\"javascript:if(event.which == 9) { var pos = this.selectionStart; this.value = this.value.substring(0, this.selectionStart) + String.fromCharCode(9) + this.value.substring(this.selectionEnd); this.selectionStart = this.selectionEnd = pos + 1; return false; }\"/>\n"
-		"</textarea></td></tr></tbody></table>\n";
+		"<textarea style=\"width:99%%;height:100%%;display:block;\" spellcheck=\"false\" onkeydown=\"javascript:if(event.which == 9) { var pos = this.selectionStart; this.value = this.value.substring(0, this.selectionStart) + String.fromCharCode(9) + this.value.substring(this.selectionEnd); this.selectionStart = this.selectionEnd = pos + 1; return false; }\"></textarea>\n"
+		"<div style=\"display:none;\"></div>\n"
+		"</td></tr></tbody></table>\n";
 
 	int fd = open("/dev/js", OWRITE|OTRUNC);
 	if (fd < 0)
@@ -49,7 +50,7 @@ load(char *filename)
 	fd = open("/dev/innerHTML", OWRITE|OTRUNC);
 	if (fd < 0)
 		sysfatal("open /dev/innerHTML: %r");
-	if (fprint(fd, html, filename, pid, pid, pid) < 0)
+	if (fprint(fd, html, filename, pid, pid, pid, pid) < 0)
 		sysfatal("write /dev/innerHTML: %r");
 	close(fd);
 }
@@ -171,7 +172,7 @@ savefile(char *filename)
 void
 openfile(char *filename)
 {
-	int in, out;
+	int in, out, style;
 	char *info;
 	int r, i, l, k;
 	char buf[BUFSIZE];
@@ -179,17 +180,31 @@ openfile(char *filename)
 	char *s;
 	char m;
 	int *sorted;
+	char *link;
 
 	readfilename(filename);
-
-	out = open("/dev/dom/0/children/0/children/1/children/0/children/0/value", OWRITE|OTRUNC);
-	if (out < 0)
-		sysfatal("open textarea: %r");
 
 	dir = dirstat(filename);
 	if (dir != nil) {
 		if (dir->mode & DMDIR) {
 			free(dir);
+
+			style = open("/dev/dom/0/children/0/children/1/children/0/children/0/attributes/style", OWRITE|OTRUNC);
+			if (style < 0)
+				sysfatal("open style attribute: %r");
+			fprint(style, "display:none;");
+			close(style);
+
+			style = open("/dev/dom/0/children/0/children/1/children/0/children/1/attributes/style", OWRITE|OTRUNC);
+			if (style < 0)
+				sysfatal("open style attribute: %r");
+			fprint(style, "width:99%%;height:100%%;display:block;border:solid 1px black;font-family:monospace;overflow:scroll;");
+			close(style);
+
+			out = open("/dev/dom/0/children/0/children/1/children/0/children/1/innerHTML", OWRITE|OTRUNC);
+			if (out < 0)
+				sysfatal("open directory div: %r");
+
 			in = open(filename, OREAD);
 			if (in < 0) {
 				close(out);
@@ -198,10 +213,21 @@ openfile(char *filename)
 				free(info);
 				return;
 			}
-			if((r = dirreadall(in, &dir)) > 0) {
-				s = calloc(1, 1);
-				if (s == nil)
+			k = strlen(filename);
+			if (k > 0)
+				k--;
+			if (filename[k] == '/')
+				filename[k] = '\0';
+			snprint(buf, BUFSIZE-1, "%s", filename);
+			s = strrchr(buf, '/');
+			if (s)
+				*s = '\0';
+			if (strlen(buf) == 0)
+				snprint(buf, 2, "/");
+			s = smprint("<a href=\"javascript:document.getElementById('filename%s').value='%s';hedit%s('open');\">../</a><br/>\n", pid, buf, pid);
+			if (s == nil)
 					sysfatal("calloc: %r");
+			if((r = dirreadall(in, &dir)) > 0) {
 				sorted = calloc(r, sizeof(int));
 				if (sorted == nil)
 					sysfatal("calloc: %r");
@@ -216,32 +242,28 @@ openfile(char *filename)
 						}
 					}
 				}
-				l = 1;
 				for (i = 0; i < r; i++) {
-					m = 0;
-					k = strlen(dir[sorted[i]].name);
-					l += k;
-					s = realloc(s, l + 4);
-					if (s == nil)
-						sysfatal("realloc: %r");
-					snprint(s + l - k - 1, k + 1, "%s", dir[sorted[i]].name);
+					l = strlen(s);
+					m = ' ';
 					if (dir[sorted[i]].mode & DMDIR) {
-						l++;
 						m = '/';
 					} else if (dir[sorted[i]].mode & DMEXEC) {
-						l++;
 						m = '*';
 					}
-					if (m)
-						snprint(s + l - 2, 2, "%c", m);
-					l++;
-					snprint(s + l - 2, 2, "\n");
+					link = smprint("<a href=\"javascript:document.getElementById('filename%s').value='%s/%s';hedit%s('open');\">%s%c</a><br/>\n", pid, filename, dir[sorted[i]].name, pid, dir[sorted[i]].name, m);
+
+					k = strlen(link);
+					s = realloc(s, l+k+1);
+					if (s == nil)
+						sysfatal("realloc: %r");
+					snprint(s + l, k, "%s", link);
+					free(link);
 				}
-				fprint(out, "%s", s);
-				free(s);
 				free(sorted);
 				free(dir);
 			}
+			fprint(out, "%s", s);
+			free(s);
 			close(in);
 			close(out);
 
@@ -253,6 +275,22 @@ openfile(char *filename)
 		} else
 			free(dir);
 	}
+
+	style = open("/dev/dom/0/children/0/children/1/children/0/children/1/attributes/style", OWRITE|OTRUNC);
+	if (style < 0)
+		sysfatal("open style attribute: %r");
+	fprint(style, "display:none;");
+	close(style);
+
+	style = open("/dev/dom/0/children/0/children/1/children/0/children/0/attributes/style", OWRITE|OTRUNC);
+	if (style < 0)
+		sysfatal("open style attribute: %r");
+	fprint(style, "width:99%%;height:100%%;display:block;");
+	close(style);
+
+	out = open("/dev/dom/0/children/0/children/1/children/0/children/0/value", OWRITE|OTRUNC);
+	if (out < 0)
+		sysfatal("open textarea: %r");
 
 	in = open(filename, OREAD);
 	if (in < 0)
@@ -282,27 +320,20 @@ main(int argc, char **argv)
 	int running = 1;
 	char ctlfilename[128];
 	int ctlfd;
-	int labelfd;
 	char cmd[16];
 
 	memset(cmd, 0, 16);
 	memset(filename, 0, sizeof(filename));
-	if (argc > 1)
+	getwd(filename, BUFSIZE);
+	if (argc > 1 && argv[1][0] != '\0')
 		strncpy(filename, argv[1], BUFSIZE-1);
 
 	pid = getenv("pid");
 	atexit(&cleanup);
 	atnotify(&atnotifycb, 1);
+
 	load(filename);
-
-	labelfd = open("/dev/label", OWRITE|OTRUNC);
-	if (labelfd > 0) {
-		fprint(labelfd, "hedit");
-		close(labelfd);
-	}
-
-	if (strlen(filename) > 0)
-		openfile(filename);
+	openfile(filename);
 
 	snprint(ctlfilename, 128-1, "/mnt/term/hedit%s", pid);
 	ctlfd = open(ctlfilename, OREAD);
