@@ -40,9 +40,6 @@ function offset(r, p) {
 function chantodepth(c) {
 	var n;
 
-	c = str2arr(c);
-	c = c[0] | c[1] << 8 | c[2] << 16 | c[3] << 24;
-
 	for (n = 0; c; c >>>= 8) {
 		if (((c>>>4)&15) >= 7 || (c&15) > 8 || (c&15) <= 0)
 			throw "invalid chan";
@@ -104,7 +101,7 @@ const alphacalc = [
 	undefined,
 	undefined,
 	function (d, s, m) {
-		return 0xFF;
+		return m;
 	},
 ];
 
@@ -153,36 +150,82 @@ function memdraw(dst, r, src, sp, mask, mp, op) {
 	dst.ctx.putImageData(d, 0, 0);
 }
 
+function pixelbits(data, offset, depth) {
+	var val = 0;
+	switch (depth) {
+	case 1:
+		val = (data[Math.floor(offset/8)] >> (7-(offset%8))) & 1;
+		break;
+	case 8:
+		val = data[offset];
+		break;
+	case 24:
+		offset *= 3;
+		val = data[offset]|(data[offset+1]<<8)|(data[offset+2]<<16);
+		break;
+	}
+	return val;
+}
+
+function imgtorgba(img, val) {
+	var r, g, b, a;
+	var nb, ov, v;
+	var chan;
+	var p;
+	var c;
+
+	a = 0xFF;
+	r = g = b = 0xAA;
+
+	for (chan = img.ichan; chan != 0; chan >>>= 8) {
+		nb = chan&15;
+		ov = v = val&((1<<nb)-1);
+		val >>>= nb;
+
+		while (nb < 8) {
+			v |= v<<nb;
+			nb *= 2;
+		}
+		v >>>= (nb-8);
+
+		switch ((chan>>>4)&15) {
+		case 0:
+			r = v;
+			break;
+		case 1:
+			g = v;
+			break;
+		case 2:
+			b = v;
+			break;
+		case 3:
+			r = g = b = v;
+			break;
+		case 4:
+			a = v;
+			break;
+		case 5:
+			throw "cmap";
+			break;
+		}
+	}
+
+	return [r, g, b, a];
+}
+
 function memfillimage(im, r, data) {
 	var i, j, k, l;
 	var d = im.ctx.getImageData(0, 0, im.canvas.width, im.canvas.height);
+	var rgba, val;
 
 	k = 0;
-	if (im.depth == 24) {
-		for(i = r[1]; i < r[3]; i++)
-			for(j = r[0]; j < r[2]; j++)
-				for(l = 0; l < 3; l++)
-					d.data[4 * (im.canvas.width * i + j) + l] = data[k++];
-	} else if (im.depth == 8) {
-		for(i = r[1]; i < r[3]; i++)
-			for(j = r[0]; j < r[2]; j++) {
-				for(l = 0; l < 3; l++)
-					d.data[4 * (im.canvas.width * i + j) + l] = data[k];
-				k++;
-			}
-	} else if (im.depth == 1) {
-		b = 0;
-		for(i = r[1]; i < r[3]; i++)
-			for(j = r[0]; j < r[2]; j++) {
-				for(l = 0; l < 3; l++)
-					d.data[4 * (im.canvas.width * i + j) + l] = ((data[k] >> b) & 1)? 0xFF: 0x00;
-				b++;
-				if (b == 8) {
-					b = 0;
-					k++;
-				}
-			}
-	}
+	for(i = r[1]; i < r[3]; i++)
+		for(j = r[0]; j < r[2]; j++) {
+			val = pixelbits(data, k++, im.depth);
+			rgba = imgtorgba(im, val);
+			for(l = 0; l < 4; l++)
+				d.data[4 * (im.canvas.width * i + j) + l] = rgba[l];
+		}
 
 	im.ctx.putImageData(d, 0, 0);
 }

@@ -84,7 +84,12 @@ function mousechange(k, f) {
 	var n;
 	var e = f.mouseevent;
 
-	f.mouse = ['m', e.clientX, e.clientY, f.mouse[3], Date.now() - starttime];
+	if (f.div && f.div.offsetLeft && f.div.offsetTop)
+		f.mouse = ['m', e.clientX - f.div.offsetLeft, e.clientY - (f.div.offsetTop + 30), f.mouse[3], Date.now() - starttime];
+	else
+		f.mouse = ['m', e.clientX, e.clientY, f.mouse[3], Date.now() - starttime];
+	if (f.mouse[2] < 0)
+		return;
 	switch(k){
 	case 1: f.mouse[3] |= (1<<e.button); break;
 	case 2: f.mouse[3] &= ~(1<<e.button); break;
@@ -361,16 +366,6 @@ function newWindow(id, canclose) {
 	div.terminal.onmouseenter = function(event) {
 		setCurrent(div);
 	}
-	div.terminal.onmousedown = function(event) {
-		setCurrent(div);
-		return false;
-	}
-	div.terminal.onmouseup = function(event) {
-		return false;
-	}
-	div.terminal.oncontextmenu = function(event) {
-		return false;
-	}
 
 	terminals[id] = div.terminal;
 
@@ -623,6 +618,9 @@ i			} catch(err) {
 	f.mouseevent = {clientX:0, clientY:0, button:0};
 	f.mouse = ['m', 0, 0, 0, 0];
 	f.onmouse = [];
+	f.div = div;
+
+	mkdrawfiles(div);
 
 	div.terminal.div = div;
 	div.terminal.style.display = 'block';
@@ -797,8 +795,8 @@ function showWindow(id) {
 }
 
 function resizeCompute(div) {
-	var width = div.style.width.replace(/px$/, '');
-	var height = div.style.height.replace(/px$/, '') - 30;
+	var width = parseInt(div.style.width.replace(/px$/, ''));
+	var height = parseInt(div.style.height.replace(/px$/, '')) - 30;
 	var f;
 
 	div.titleBar.style.width = width + 'px';
@@ -809,10 +807,21 @@ function resizeCompute(div) {
 
 	try {
 		f = lookupfile("/dev/hsys/" + div.id + "/mouse", 1);
-		f.mouse = ['r', width, height+30, mouse[3], Date.now() - starttime];
+		f.mouse = ['r', width, height, mouse[3], Date.now() - starttime];
 		while(f.onmouse.length > 0)
 			f.onmouse.shift()();
+		f = lookupfile("/dev/hsys/" + div.id + "/draw", 1);
+		if (f.draw.nctl > 0) {
+			f.draw.canvas.width = width;
+			f.draw.canvas.height = height;
+			f.draw.disp.r[0] = 0; //parseInt(div.style.left.replace(/px$/,''));
+			f.draw.disp.r[1] = 0; //parseInt(div.style.left.replace(/px$/,''));
+			f.draw.disp.r[2] = width; //f.draw.disp.r[0] + width;
+			f.draw.disp.r[3] = height; //f.draw.disp.r[1] + height;
+			f.draw.disp.clipr = f.draw.disp.r;
+		}
 	} catch(e) {
+		console.log(e+'');
 	}
 }
 
