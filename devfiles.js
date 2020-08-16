@@ -8,11 +8,11 @@ mkfile("/dev/bintime", undefined, function(f, p) {
 	var now = Date.now();
 	var cycles = now - starttime;
 	var buf = new Uint8Array(24);
-	var b = itomp(now);
+	var b = ltomp(now);
 	var m = itomp(1000000);
 	mpmul(b, m, b);
 	mptober(b, buf, 0, 8);
-	b = itomp(cycles);
+	b = ltomp(cycles);
 	mptober(b, buf, 8, 8);
 	b = itomp(1000);
 	mptober(b, buf, 16, 8);

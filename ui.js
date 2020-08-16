@@ -447,7 +447,7 @@ function newWindow(id, canclose) {
 			}
 		});
 	mkfile("/dev/hsys/" + id + "/winid", undefined, function(f, p) {
-			data = id.toString();
+			var data = id.toString();
 			data = Array(12 - data.length).join(' ') + data + ' ';
 			respond(p, data.substring(p.offset, p.offset+p.count));
 		});
@@ -460,8 +460,8 @@ function newWindow(id, canclose) {
 		},
 		function(f, p) {
 			try {
-				respond(p, f.test.substring(p.offset, p.offset+p.count));
-i			} catch(err) {
+				respond(p, f.text.substring(p.offset, p.offset+p.count));
+			} catch(err) {
 				error9p(p.tag, err.toString());
 			}
 		});

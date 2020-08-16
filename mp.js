@@ -77,7 +77,7 @@ function mpnorm(b) {
 	return b;
 }
 
-function itomp(i) {
+function ltomp(i) {
 	var b = mpnew(0);
 	if (i < 0)
 		b.sign = -1;
@@ -88,6 +88,17 @@ function itomp(i) {
 		b.top++;
 		i = Math.floor(i / 0x100000000);
 	}
+
+	return mpnorm(b);
+}
+
+function itomp(i) {
+	var b = mpnew(0);
+	if (i < 0)
+		b.sign = -1;
+	i *= b.sign;
+	b.top = 1;
+	b.p[0] = i;
 
 	return mpnorm(b);
 }

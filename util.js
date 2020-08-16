@@ -12,6 +12,16 @@ function zerobytes(n) {
 	return new Uint8Array(n);
 }
 
+function onebytes(n) {
+	var ret = zerobytes(n);
+	var i;
+
+	for (i = 0; i < n; i++)
+		ret[i] = 0xFF;
+
+	return ret;
+}
+
 function randombytes(n) {
 	var s, i;
 
