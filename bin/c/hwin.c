@@ -23,7 +23,12 @@ fswrite(Req *r)
 		return;
 	}
 
-	if (f == fwdir && rwdir == 0) {
+	if (f == fwdir) {
+		if (rwdir == 1) {
+			respond(r, "no.");
+			return;
+		}
+
 		p = (char*)r->ifcall.data;
 		p[strcspn(p, "\n")] = '\0';
 
@@ -41,12 +46,13 @@ fswrite(Req *r)
 			free(cwdir);
 			cwdir = cleanname(b);
 		}
-
-		respond(r, nil);
+	}
+	else {
+		respond(r, "wtf");
 		return;
 	}
 
-	respond(r, "no");
+	respond(r, nil);
 }
 
 void
@@ -84,8 +90,13 @@ fsread(Req *r)
 		p = (char*)r->ofcall.data;
 		memmove(p, &cwdir[offset], count);
 		rwdir = 0;
-		respond(r, nil);
 	}
+	else {
+		respond(r, "wtf");
+		return;
+	}
+
+	respond(r, nil);
 }
 
 Srv fs = {
@@ -118,7 +129,7 @@ noteproc(void *arg) {
 	}
 	while((r = read(in, buf, 255)) > 0) {
 		if (write(out, buf, r) != r) {
-			fprint(2, "error: write note: %r\n");
+			fprint(2, "error: write /dev/cpunote: %r\n");
 			break;
 		}
 	}
@@ -126,6 +137,160 @@ noteproc(void *arg) {
 		fprint(2, "error: read /dev/cpunote: %r\n");
 	close(in);
 	close(out);
+}
+
+int
+reducematch(char *ccomp)
+{
+	Dir *dir;
+	int dfd;
+	int ret = 0;
+	int last = -1;
+	char *matches;
+	int i, j, l, m, n, r;
+	char *b;
+	char *p;
+	
+	if (strcmp(ccomp, ".") == 0 || strcmp(ccomp, "..") == 0 || strcmp(ccomp, "/") == 0) {
+		return 0;
+	}
+
+	b = smprint("%s", ccomp);
+	p = strrchr(b, '/');
+	l = strlen(b);
+
+	if (p) {
+		if (p == b) {
+			b = realloc(b, l+2);
+			memmove(b+1, b, l+1);
+			b[1] = '\0';
+			p = b + 2;
+		} else if ((p-b+1)<l) {
+			*p++ = '\0';
+		} else {
+			*p = '\0';
+			p = strrchr(b, '/');
+			if (p)
+				*p++ = '\0';
+		}
+	}	
+	if (!p) {
+		p = b;
+		b = smprint("./%s", p);
+		free(p);
+		b[1] = '\0';
+		p = b + 2;
+	}
+
+	if ((dir = dirstat(b)) != nil) {
+		free(dir);
+
+		dfd = open(b, OREAD);
+		if ((n = dirreadall(dfd, &dir)) > 0) {
+			matches = malloc(n);
+			while (ret > last) {
+				last = ret;
+				memset(matches, 0, n);
+				l = strlen(p);
+				m = 0;
+				for (i = 0; i < n; i++) {
+					if (strncmp(p, dir[i].name, l) == 0) {
+						matches[i] = 1;
+						if (dir[i].name[l] != '\0')
+							m = dir[i].name[l];
+					}
+				}
+				r = 0;
+				if (m) {
+					r = 1;
+					for (i = 0; i < n; i++) {
+						if (matches[i] && (m != dir[i].name[l])) {
+							r = 0;
+							break;
+						}
+					}
+				}
+				if (r) {
+					ret++;
+					l = strlen(b) + strlen(p) + 1;
+					b = realloc(b, l + 3);
+					b[l] = m;
+					b[l+1] = '\0';
+				}
+			}
+			m = 0;
+			l = strlen(p);
+			for (i = 0; i < n; i++)
+				if (strncmp(p, dir[i].name, l) == 0) {
+					m++;
+					if (m > 1) {
+						ret = -1;
+						break;
+					}
+				}
+			b[strlen(b)] = '/';
+			snprint(ccomp, 4095, "%s", cleanname(b));
+			free(dir);
+			free(matches);
+		}
+		close(dfd);
+	}
+
+	free(b);
+	return ret;
+}
+
+void
+completeproc(void *arg)
+{
+	char *buf = malloc(4096);
+	int fd;
+	int r;
+	char *b;
+	Dir *dir;
+	
+	fd = open("/dev/complete", ORDWR);
+	if (fd < 0) {
+		fprint(2, "error: open /dev/complete: %r\n");
+		return;
+	}
+	while((r = read(fd, buf, 4095)) > 0) {
+		chdir(cwdir);
+
+		buf[r] = '\0';
+
+		do {
+			dir = dirstat(buf);
+			if (dir != nil) {
+				if (!reducematch(buf)) {
+					if (dir->mode & DMDIR) {
+						if (strcmp(buf, "/") == 0)
+							b = smprint("/");
+						else
+							b = smprint("%s/", cleanname(buf));
+					}
+					else {
+						b = smprint("%s ", cleanname(buf));
+					}
+					snprint(buf, 4095, "%s", b);
+					free(b);
+					free(dir);
+					break;
+				}
+				free(dir);
+			}
+		} while(reducematch(buf) > 0);
+		r = strlen(buf);
+
+		if (write(fd, buf, r) != r) {
+			fprint(2, "error: write /dev/complete: %r\n");
+			break;
+		}
+	}
+	if (r < 0)
+		fprint(2, "error: read /dev/complete: %r\n");
+	free(buf);
+	close(fd);
 }
 
 void
@@ -205,6 +370,7 @@ threadmain(int argc, char **argv) {
 	waitchan = threadwaitchan();
 	proccreate(noteproc, cpid, mainstacksize);
 	proccreate(waitproc, waitchan, mainstacksize);
+	proccreate(completeproc, nil, mainstacksize);
 	procexec(cpid, cmd, args);
 	sysfatal("exec: %r");
 }

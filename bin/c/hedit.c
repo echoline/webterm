@@ -36,7 +36,7 @@ load(char *filename)
 		"<td><input type=\"button\" value=\"save\" onclick=\"javascript:hedit%s('save');\"/></td>\n"
 		"<td><input type=\"button\" value=\"quit\" onclick=\"javascript:hedit%s('quit');\"/></td></tr>\n"
 		"<tr style=\"height:100%%\"><td colspan=\"5\" style=\"height:100%%\">\n"
-		"<textarea style=\"width:99%%;height:100%%;display:block;\" spellcheck=\"false\" onkeydown=\"javascript:if(event.which == 9) { var pos = this.selectionStart; this.value = this.value.substring(0, this.selectionStart) + String.fromCharCode(9) + this.value.substring(this.selectionEnd); this.selectionStart = this.selectionEnd = pos + 1; return false; }\"></textarea>\n"
+		"<textarea style=\"width:99%%;height:100%%;display:block;\" spellcheck=\"false\" onkeydown=\"javascript:if(event.which == 9) { var pos = this.selectionStart; this.value = this.value.substring(0, this.selectionStart) + String.fromCharCode(event.which) + this.value.substring(this.selectionEnd); this.selectionStart = this.selectionEnd = pos + 1; event.preventDefault(); return false; }\"></textarea>\n"
 		"<div style=\"display:none;\"></div>\n"
 		"</td></tr></tbody></table>\n";
 
