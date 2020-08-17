@@ -1,6 +1,97 @@
 #include <u.h>
 #include <libc.h>
 #include <thread.h>
+#include <fcall.h>
+#include <9p.h>
+
+File *fwdir;
+char *cwdir;
+char rwdir = 0;
+
+void
+fswrite(Req *r)
+{
+	File *f = r->fid->file;
+	vlong offset = r->ifcall.offset;
+	int count = r->ifcall.count;
+	char *p, *b;
+
+	r->ofcall.count = 0;
+
+	if (count == 0) {
+		respond(r, nil);
+		return;
+	}
+
+	if (f == fwdir && rwdir == 0) {
+		p = (char*)r->ifcall.data;
+		p[strcspn(p, "\n")] = '\0';
+
+		if (strlen(p) != 0) {
+			if (p[0] == '/')
+				b = smprint("%.*s", count, p);
+			else
+				b = smprint("%s/%.*s", cwdir, count, p);
+
+			if (b == nil) {
+				respond(r, "no memory");
+				return;
+			}
+
+			free(cwdir);
+			cwdir = cleanname(b);
+		}
+
+		respond(r, nil);
+		return;
+	}
+
+	respond(r, "no");
+}
+
+void
+fsread(Req *r)
+{
+	File *f = r->fid->file;
+	vlong offset = r->ifcall.offset;
+	int count = r->ifcall.count;
+	int len;
+	char *p;
+
+	r->ofcall.count = 0;
+
+	if (count == 0) {
+		respond(r, nil);
+		return;
+	}
+
+	if (f == fwdir) {
+		rwdir = 1;
+		len = strlen(cwdir);
+
+		if (offset >= len) {
+			rwdir = 0;
+			respond(r, nil);
+			return;
+		}
+
+		len -= offset;
+
+		if (len < count)
+			count = len;
+
+		r->ofcall.count = count;
+		p = (char*)r->ofcall.data;
+		memmove(p, &cwdir[offset], count);
+		rwdir = 0;
+		respond(r, nil);
+	}
+}
+
+Srv fs = {
+	.read=		fsread,
+	.write=		fswrite,
+};
 
 int newfd;
 
@@ -104,6 +195,13 @@ threadmain(int argc, char **argv) {
 		exits("open");	/* BUG? was terminate() */
 	}
 	dup(1, 2);
+
+	fs.tree = alloctree(nil, nil, DMDIR|0777, nil);
+	fwdir = createfile(fs.tree->root, "wdir", nil, 0666, nil);
+	cwdir = malloc(8192);
+	getwd(cwdir, 8192);
+	threadpostmountsrv(&fs, nil, "/dev", MBEFORE);
+
 	waitchan = threadwaitchan();
 	proccreate(noteproc, cpid, mainstacksize);
 	proccreate(waitproc, waitchan, mainstacksize);

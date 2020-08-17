@@ -182,6 +182,9 @@ mkfile("/dev/screen", function(f) {
 			var img = document.createElement('img');
 			img.onerror = function(e) {
 				console.log(e.toString());
+				f.ready = true;
+				while(f.queue.length > 0)
+					readstr(f.queue.shift(), f.data);
 			}
 			img.onload = function () {
 				var canvas = document.createElement("canvas");

@@ -612,16 +612,9 @@ function newWindow(id, canclose) {
 			data = Array(12 - data.length).join(' ') + data + ' ';
 			respond(p, data.substring(p.offset, p.offset+p.count));
 		});
-	mkfile("/dev/hsys/" + id + "/text", function(f) {
+	mkfile("/dev/hsys/" + id + "/text", undefined, function(f, p) {
 			try {
-				f.text = toutf8(terminals[id].value.slice(0, terminals[id].value.length - 2));
-			} catch(err) {
-				return err.toString();
-			}
-		},
-		function(f, p) {
-			try {
-				respond(p, f.text.substring(p.offset, p.offset+p.count));
+				readstr(p, toutf8(terminals[id].value.slice(0, terminals[id].value.length - 2)));
 			} catch(err) {
 				error9p(p.tag, err.toString());
 			}
@@ -751,6 +744,9 @@ function newWindow(id, canclose) {
 				var img = document.createElement('img');
 				img.onerror = function(e) {
 					console.log(e.toString());
+					f.ready = true;
+					while(f.queue.length > 0)
+						readstr(f.queue.shift(), f.data);
 				}
 				img.onload = function () {
 					var canvas = document.createElement("canvas");
