@@ -225,7 +225,7 @@ function Twrite(p) {
 }
 
 function dirent(f) {
-	s = {"type":0, "dev":0, "qid": pack(f.qid, Qid), "mode": 0, "atime":0, "mtime":0, "length":0, "name":f.name, "uid":username, "gid":username, "muid":username};
+	var s = {"type":0, "dev":0, "qid": pack(f.qid, Qid), "mode": 0, "atime":0, "mtime":0, "length":0, "name":f.name, "uid":username, "gid":username, "muid":username};
 	s.atime = s.mtime = new Date().getTime() / 1000;
 	if(f.filelength)
 		s.length = f.filelength(f);

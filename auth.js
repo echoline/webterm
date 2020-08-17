@@ -65,7 +65,7 @@ function startauth() {
 	var authinfo = {}
 	cpubuf = "";
 
-	conn = newWebSocket("ws://localhost:8000/rcpu");
+	conn = newWebSocket("ws://" + document.location.host + ":8000/rcpu");
 	conn.onmessage = function(event) {
 		cpubuf += atob(event.data);
 		if(oncpumsg)
@@ -153,7 +153,7 @@ function startauth() {
 				s.YAc = arr2str(y);
 				s = pack(s, AuthPAKC2A);
 
-				authconn = newWebSocket("ws://localhost:8000/auth");
+				authconn = newWebSocket("ws://" + document.location.host + ":8000/auth");
 				authconn.onmessage = function(event) {
 					var i, a;
 

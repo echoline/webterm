@@ -4,6 +4,11 @@
 	height: 100%;
 }
 
+a {
+	color: blue;
+	text-decoration: underline;
+}
+
 .window .bg {
 /*	opacity:0.90;
 	filter:alpha(opacity=90);
@@ -11,14 +16,15 @@
 	background-color: white;
 	margin: 0px;
 	margin-top:30px;
-	margin-bottom:4px;
+	margin-bottom:0px;
 	padding: 0px;
 	left: 0px;
 	top: 30px;
-	bottom: 4px;
+	bottom: 0px;
 	border: 0px;
 	width: 100%;
 	height: 100%;
+	overflow: auto;
 }
 
 .window {
@@ -68,15 +74,15 @@
 }
 
 .window .title {
-	opacity:0.90;
-	filter:alpha(opacity=90);
+#	opacity:0.90;
+#	filter:alpha(opacity=90);
 	position: absolute;
 	left: -3px;
 	top: 0;
 	width: 100%;
 	color: #ddd;
-	height: 0.9em;
-	padding-bottom: 0.5em;
+	height: 22px; # 0.9em;
+#	padding-bottom: 0.5em;
 /*	border-left: solid 3px #1e5799;
 	border-bottom: 3px solid #999;
 	border-right: 3px solid #888;*/
@@ -173,4 +179,7 @@
 	border: 0px;
 	width: 100%;
 	height: 100%;
+	font-family: monospace;
+	font-size: 13px;
 }
+

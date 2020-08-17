@@ -131,6 +131,16 @@ function startui() {
 		mousechange(2, window);
 	}
 
+	document.ontouchstart = function(event) {
+		mouseevent.button = 1;
+		mousechange(1, window);
+	}
+
+	document.ontouchend = function(event) {
+		mouseevent.button = 1;
+		mousechange(2, window);
+	}
+
 	window.resizeTimer = undefined;
 	window.onresize = function(event) {
 		if (resizeTimer)
@@ -140,6 +150,11 @@ function startui() {
 				while(onmouse.length != 0)
 					onmouse.shift()();
 			}, 250);
+	}
+
+	window.onselect = function(event) {
+		if (window.dragging)
+			return false;			
 	}
 
 	mkdir("/dev/hsys");
@@ -332,6 +347,152 @@ function parsewctl(div, op, data) {
 		}
 		resizeCompute(div);
 	}
+}
+
+function getDisplayMedia(options) {
+	if (navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia) {
+		return navigator.mediaDevices.getDisplayMedia(options)
+	}
+	if (navigator.getDisplayMedia) {
+		return navigator.getDisplayMedia(options)
+	}
+	if (navigator.webkitGetDisplayMedia) {
+		return navigator.webkitGetDisplayMedia(options)
+	}
+	if (navigator.mozGetDisplayMedia) {
+		return navigator.mozGetDisplayMedia(options)
+	}
+	throw new Error('getDisplayMedia is not defined')
+}
+
+function getUserMedia(options) {
+	if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+		return navigator.mediaDevices.getUserMedia(options);
+	}
+	if (navigator.getUserMedia) {
+		return navigator.getUserMedia(options);
+	}
+	if (navigator.webkitGetUserMedia) {
+		return navigator.webkitGetUserMedia(options);
+	}
+	if (navigator.mozGetUserMedia) {
+		return navigator.mozGetUserMedia(options);
+	}
+	throw 'getUserMedia is not defined';
+}
+
+async function getscreenshotstream() {
+	const width = screen.width * (window.devicePixelRatio || 1);
+	const height = screen.height * (window.devicePixelRatio || 1);
+
+	var stream = await getDisplayMedia({
+		audio: false,
+		video: {
+			width,
+			height,
+			frameRate: 1,
+		},
+	});
+
+/*	stream = await getUserMedia({
+		audio: false,
+		video: {
+			mandatory: {
+				chromeMediaSource: 'desktop',
+				minWidth: width,
+				maxWidth: width,
+				minHeight: height,
+				maxHeight: height,
+			},
+		},
+	});*/
+
+	return stream;
+}
+
+var screenshotstream;
+
+async function screenshot(x1, y1, x2, y2) {
+	if (!screenshotstream)
+		screenshotstream = await getscreenshotstream();
+
+	if (!screenshotstream)
+		throw "no screenshot stream";
+
+	const video = document.createElement('video');
+	const result = await new Promise((resolve, reject) => {
+		video.onloadedmetadata = function() {
+			video.play();
+			video.pause();
+
+			const canvas = document.createElement('canvas');
+			canvas.width = x2 - x1;
+			canvas.height = y2 - y1;
+			const context = canvas.getContext('2d');
+			context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+			resolve(canvas);
+		}
+		video.srcObject = screenshotstream;
+	});
+
+	screenshotstream.getTracks().forEach(function (track) {
+		track.stop()
+	});
+
+	return result;
+}
+
+function getstylesheets() {
+	var css = "";
+	var sheet, rule;
+	var i, j;
+
+	for (i = 0; i < document.styleSheets.length; i++) {
+		sheet = document.styleSheets[i];
+		for (j = 0; j < sheet.cssRules.length; j++) {
+			rule = sheet.cssRules[j];
+			css += rule.cssText + " ";
+		}
+	}
+
+	return css;
+}
+
+function clonehtml(element) {
+	var i, j, child, attr, value, height;
+	var html = "";
+
+	for (i = 0; i < element.children.length; i++) {
+		child = element.children[i];
+		if (child.nodeName == 'BR' || child.nodeName == 'HR') {
+			html += "<" + child.nodeName.toLowerCase() + "/>";
+			continue;
+		}
+
+		html += "<" + child.nodeName.toLowerCase() + " "
+		for (j = 0; j < child.attributes.length; j++) {
+			attr = child.attributes[j];
+			value = attr.value;
+//			if (child.scrollTop && attr.name == 'style') {
+//				height = parseInt(child.style.height.replace(/px$/,''));
+//				value += "top:" + ((-child.scrollTop) + height + 30) + "px;height:" + child.scrollTop + "px;";
+//			}
+			html += attr.name + "=\"" + value + "\" ";
+		}
+		html += ">";
+
+		if (child.nodeName == 'TEXTAREA')
+			html += child.value;
+		else if (child.children.length > 0)
+			html += clonehtml(child);
+		else
+			html += child.innerHTML;
+
+		html += "</" + child.nodeName.toLowerCase() + ">";
+	}
+
+	return html;
 }
 
 function newWindow(id, canclose) {
@@ -555,6 +716,77 @@ function newWindow(id, canclose) {
 			div.wctlopen = false;
 			div.onwctlread = [];
 		});
+	mkfile("/dev/hsys/" + id + "/window", function(f) {
+			f.data = "";
+			f.ready = false;
+			f.queue = [];
+			try {
+				var left = parseInt(div.style.left.replace(/px$/,''));
+				var top = parseInt(div.style.top.replace(/px$/,''));
+				var width = parseInt(div.style.width.replace(/px$/,''));
+				var height = parseInt(div.style.height.replace(/px$/,''));
+				var i, j;
+				var a = ["x8r8g8b8", left, top, left+width, top+height];
+				for (i in a) {
+					a[i] = String(a[i]).substring(0, 11);
+					if (a[i].length < 11)
+						a[i] = Array(12 - a[i].length).join(' ') + a[i];
+				}
+				f.data = a.join(' ')+' ';
+			} catch(e) {
+				f.ready = true;
+			}
+			try {
+				var css = getstylesheets();
+				var html = clonehtml(div);
+				var doc = document.implementation.createHTMLDocument('');
+				doc.documentElement.setAttribute('xmlns', doc.documentElement.namespaceURI);
+				doc.write("<style>" + css + "</style>");
+				doc.write("<div class=\"window\" style=\"top:0;left:-3px;\">" + html + "</div>");
+				var xml = (new XMLSerializer).serializeToString(doc.body);
+				xml = xml.replace(/\#/g, "%23");
+				var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + width + '" height="' + height + '">';
+				svg += '<foreignObject width="100%" height="100%">' + xml + '</foreignObject>';
+				svg += '</svg>';
+				var img = document.createElement('img');
+				img.onerror = function(e) {
+					console.log(e.toString());
+				}
+				img.onload = function () {
+					var canvas = document.createElement("canvas");
+					canvas.width = width;
+					canvas.height = height;
+					var ctx = canvas.getContext("2d");
+					ctx.drawImage(img, 0, 0);
+					var d = ctx.getImageData(0, 0, width, height).data;
+					var b = zerobytes(width * 4);
+					for (i = 0; i < height; i++) {
+						for (j = 0; j < width; j++) {
+							b[j * 4 + 0] = d[(i * width + j) * 4 + 2];
+							b[j * 4 + 1] = d[(i * width + j) * 4 + 1];
+							b[j * 4 + 2] = d[(i * width + j) * 4 + 0];
+							b[j * 4 + 3] = d[(i * width + j) * 4 + 3];
+						}
+						f.data += arr2str(b);
+					}
+					f.ready = true;
+					while(f.queue.length > 0)
+						readstr(f.queue.shift(), f.data);
+				}
+				img.src = 'data:image/svg+xml;charset=utf-8,' + svg;
+			} catch(e) {
+				console.log(e.toString());
+				f.ready = true;
+				while(f.queue.length > 0)
+					readstr(f.queue.shift(), f.data);
+			}
+		},
+		function(f, p) {
+			if (f.ready == false)
+				f.queue.push(p);
+			else
+				readstr(p, f.data);
+		});
 	mkdir("/dev/hsys/" + id + "/dom");
 	mkfile("/dev/hsys/" + id + "/innerHTML", function(f) {
 			try {
@@ -658,8 +890,24 @@ function newWindow(id, canclose) {
 	}
 
 	div.ontouchstart = function(event) {
+		try {
+			f = lookupfile("/dev/hsys/" + div.id + "/mouse", 1);
+			f.mouseevent.button = 1;
+			mousechange(1, f);
+		} catch(e) {
+		}
 		raiseWindow(id);
 		setCurrent(div);
+	}
+
+	div.ontouchmove = function(event) {
+		try {
+			f = lookupfile("/dev/hsys/" + div.id + "/mouse", 1);
+			f.mouseevent.clientX = event.touches[0].screenX;
+			f.mouseevent.clientY = event.touches[0].screenY;
+			mousechange(0, f);
+		} catch(e) {
+		}
 	}
 
 	// avoid that trapping bug by using global not div.titleBar
@@ -754,6 +1002,8 @@ function closeWindow(id) {
 		w.terminal.note("hangup");
 		document.body.removeChild(w);
 		nwindows--;
+
+		rmfile("/dev/hsys/" + id);
 	}
 }
 

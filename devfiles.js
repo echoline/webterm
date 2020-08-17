@@ -149,4 +149,72 @@ mkfile("/dev/mp3", function(f, p) {
 		if (f.queue.length == 0)
 			f.context.close();
 	});
-
+mkfile("/dev/screen", function(f) {
+		f.data = "";
+		f.ready = false;
+		f.queue = [];
+		try {
+			var width = window.innerWidth;
+			var height = window.innerHeight;
+			var i, j;
+			var a = ["x8r8g8b8", 0, 0, width, height];
+			for (i in a) {
+				a[i] = String(a[i]).substring(0, 11);
+				if (a[i].length < 11)
+					a[i] = Array(12 - a[i].length).join(' ') + a[i];
+			}
+			f.data = a.join(' ')+' ';
+		} catch(e) {
+			f.ready = true;
+		}
+		try {
+			var css = getstylesheets();
+			var html = clonehtml(document.body);
+			var doc = document.implementation.createHTMLDocument('');
+			doc.documentElement.setAttribute('xmlns', doc.documentElement.namespaceURI);
+			doc.write("<style>" + css + "</style>");
+			doc.write("<div style='position:absolute;left:0;top:0;width:100%;height:100%;" + document.body.attributes["style"].value + "'><div style='margin:10px;'>" + html + "</div></div>");
+			var xml = (new XMLSerializer).serializeToString(doc.body);
+			xml = xml.replace(/\#/g, "%23");
+			var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + width + '" height="' + height + '">';
+			svg += '<foreignObject width="100%" height="100%">' + xml + '</foreignObject>';
+			svg += '</svg>';
+			var img = document.createElement('img');
+			img.onerror = function(e) {
+				console.log(e.toString());
+			}
+			img.onload = function () {
+				var canvas = document.createElement("canvas");
+				canvas.width = width;
+				canvas.height = height;
+				var ctx = canvas.getContext("2d");
+				ctx.drawImage(img, 0, 0);
+				var d = ctx.getImageData(0, 0, width, height).data;
+				var b = zerobytes(width * 4);
+				for (i = 0; i < height; i++) {
+					for (j = 0; j < width; j++) {
+						b[j * 4 + 0] = d[(i * width + j) * 4 + 2];
+						b[j * 4 + 1] = d[(i * width + j) * 4 + 1];
+						b[j * 4 + 2] = d[(i * width + j) * 4 + 0];
+						b[j * 4 + 3] = d[(i * width + j) * 4 + 3];
+					}
+					f.data += arr2str(b);
+				}
+				f.ready = true;
+				while(f.queue.length > 0)
+					readstr(f.queue.shift(), f.data);
+			}
+			img.src = 'data:image/svg+xml;charset=utf-8,' + svg;
+		} catch(e) {
+			console.log(e.toString());
+			f.ready = true;
+			while(f.queue.length > 0)
+				readstr(f.queue.shift(), f.data);
+		}
+	},
+	function(f, p) {
+		if (f.ready == false)
+			f.queue.push(p);
+		else
+			readstr(p, f.data);
+	});

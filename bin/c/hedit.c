@@ -267,6 +267,8 @@ openfile(char *filename)
 			close(in);
 			close(out);
 
+			if (filename[0] == '\0')
+				sprint(filename, "/");
 			info = smprint("directory contents");
 			setlabel(filename, info);
 			free(info);
