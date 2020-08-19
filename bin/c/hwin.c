@@ -8,6 +8,8 @@ File *fwdir;
 char *cwdir;
 char rwdir = 0;
 
+int winid;
+
 void
 fswrite(Req *r)
 {
@@ -120,14 +122,14 @@ noteproc(void *arg) {
 		fprint(2, "error: open /dev/cpunote: %r\n");
 		return;
 	}
-	snprint(buf, 255, "/proc/%d/notepg", pid);
+	snprint(buf, sizeof(buf), "/proc/%d/notepg", pid);
 	out = open(buf, OWRITE);
 	if (out < 0) {
 		fprint(2, "error: open %s: %r\n", buf);
 		close(in);
 		return;
 	}
-	while((r = read(in, buf, 255)) > 0) {
+	while((r = read(in, buf, sizeof(buf))) > 0) {
 		if (write(out, buf, r) != r) {
 			fprint(2, "error: write /dev/cpunote: %r\n");
 			break;
@@ -135,6 +137,7 @@ noteproc(void *arg) {
 	}
 	if (r < 0)
 		fprint(2, "error: read /dev/cpunote: %r\n");
+	write(out, "hangup", 6);
 	close(in);
 	close(out);
 }
@@ -303,14 +306,38 @@ waitproc(void *arg)
 }
 
 void
+kbdfsproc(void *arg)
+{
+	char buf[256];
+	char *argv[] = {"/bin/aux/kbdfs", "-dq", "-m", buf, nil};
+
+	snprint(buf, sizeof(buf), "/mnt/term/kbdfs/%d", winid);
+	bind(buf, "/dev", MAFTER);
+
+	close(0);
+	if(open("/dev/cons", OREAD) < 0){
+		sysfatal("open /dev/cons: %r");
+	}
+	close(1);
+	if(open("/dev/cons", OWRITE) < 0){
+		sysfatal("open /dev/cons: %r");
+	}
+	dup(1, 2);
+
+	procexec(nil, "/bin/aux/kbdfs", argv);
+
+	sysfatal("exec: %r");
+}
+
+void
 threadmain(int argc, char **argv) {
 	char *cmd = "/bin/rc";
 	char buf[256];
-	char winid[16];
 	int pid;
 	int r;
 	Channel *cpid;
 	Channel *waitchan;
+	Waitmsg *waitmsg;
 	char **args = argv;
 	char *path;
 	char *tok;
@@ -344,20 +371,29 @@ threadmain(int argc, char **argv) {
 	newfd = open("/dev/hsys/new", OREAD);
 	if (newfd < 0)
 		exits("open new");
-	if ((r = readn(newfd, winid, 12)) != 12)
+	if ((r = readn(newfd, buf, 12)) != 12)
 		exits("read new");
-	winid[r] = '\0';
-	snprint(buf, 255, "/dev/hsys/%d", atoi(winid));
+	buf[r] = '\0';
+	winid = atoi(buf);
+
+	snprint(buf, sizeof(buf), "/dev/hsys/%d", winid);
 	bind(buf, "/dev", MBEFORE|MCREATE);
+
+	waitchan = threadwaitchan();
+	proccreate(kbdfsproc, nil, mainstacksize);
+	waitmsg = recvp(waitchan);
+	free(waitmsg);
+
+	snprint(buf, sizeof(buf), "/mnt/term/kbdfs/%d", winid);
+	bind(buf, "/dev", MBEFORE);
+
 	close(0);
 	if(open("/dev/cons", OREAD) < 0){
-		fprint(2, "can't open /dev/cons: %r\n");
-		exits("/dev/cons");
+		sysfatal("open /dev/cons: %r");
 	}
 	close(1);
 	if(open("/dev/cons", OWRITE) < 0){
-		fprint(2, "can't open /dev/cons: %r\n");
-		exits("open");	/* BUG? was terminate() */
+		sysfatal("open /dev/cons: %r");
 	}
 	dup(1, 2);
 
@@ -367,7 +403,6 @@ threadmain(int argc, char **argv) {
 	getwd(cwdir, 8192);
 	threadpostmountsrv(&fs, nil, "/dev", MBEFORE);
 
-	waitchan = threadwaitchan();
 	proccreate(noteproc, cpid, mainstacksize);
 	proccreate(waitproc, waitchan, mainstacksize);
 	proccreate(completeproc, nil, mainstacksize);

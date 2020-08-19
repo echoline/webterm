@@ -6,7 +6,7 @@ if (! ~ $#* 1) {
 }
 
 {
-	if (~ $"1 black brown red orange yellow green blue purple white gr[ae]y '#'[0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f] '#'[0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f])
+	if (~ $"1 black brown red orange yellow green blue purple white gr[ae]y pink '#'[0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f] '#'[0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f])
 		echo 'document.body.style.background="'^$"1^'";'
 	if not {
 		echo -n 'document.body.style.background=''url("'
