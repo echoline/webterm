@@ -39,11 +39,10 @@
 		term.setAttribute('class', ''); 
 		document.getElementById('terminal').appendChild(term);
 		term.parentNode.terminal = term;
+		term.onkeydown = function(event) { return false; };
+		term.onkeyup = undefined;
 		window.onerror = function(msg){
 			term.print(msg + '\n');
-		};
-		window.onunload = function() {
-			term.note('hangup');
 		};
 
 		startui();
