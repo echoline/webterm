@@ -287,7 +287,7 @@ openfile(char *filename)
 	style = open("/dev/dom/0/children/0/children/1/children/0/children/0/attributes/style", OWRITE|OTRUNC);
 	if (style < 0)
 		sysfatal("open style attribute: %r");
-	fprint(style, "width:99%%;height:100%%;display:block;");
+	fprint(style, "width:99%%;height:100%%;display:block;white-space:nowrap;overflow:auto;");
 	close(style);
 
 	out = open("/dev/dom/0/children/0/children/1/children/0/children/0/value", OWRITE|OTRUNC);

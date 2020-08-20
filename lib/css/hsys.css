@@ -183,3 +183,26 @@ a {
 	font-size: 13px;
 }
 
+input {
+	border: solid 1px black;
+	background-color: white;
+}
+
+*::-webkit-scrollbar {
+	background: white;
+	border: 1px solid black;
+}
+
+*::-webkit-scrollbar-track {
+	background: white;
+	border: 1px solid black;
+}
+
+*::-webkit-scrollbar-thumb {
+	background-color: #888;
+}
+
+* {
+	scrollbar-color: #888 white;
+}
+

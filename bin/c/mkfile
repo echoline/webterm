@@ -1,6 +1,6 @@
 </$objtype/mkfile
 
-all: hwin enc64 hedit
+all: hwin enc64 hedit mp3encfs
 
 hwin: hwin.$O
 	$O^l -o hwin hwin.$O
@@ -20,9 +20,14 @@ hedit: hedit.$O
 hedit.$O: hedit.c
 	$O^c hedit.c
 
-install: hwin enc64 hedit
-	cp hwin enc64 hedit $home/bin/$objtype/
+mp3encfs: mp3encfs.$O
+	$O^l -o mp3encfs mp3encfs.$O
+
+mp3encfs.$O: mp3encfs.c
+	$O^c mp3encfs.c
+
+install: hwin enc64 hedit mp3encfs
+	cp hwin enc64 hedit mp3encfs $home/bin/$objtype/
 
 clean:
-	rm -f hwin.[$OS] enc64.[$OS] hedit.[$OS] hwin enc64 hedit
-
+	rm -f hwin.[$OS] enc64.[$OS] hedit.[$OS] mp3encfs.[$OS] hwin enc64 hedit mp3encfs
