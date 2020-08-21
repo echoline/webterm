@@ -26,6 +26,8 @@ writeproc(void *arg)
 	char *p;
 	char a;
 
+	threadsetname("writeproc");
+
 	while((r = recvp(pinfo->reqchan)) != nil) {
 		n = r->ifcall.count;
 		c = n/2;
@@ -121,6 +123,8 @@ waitproc(void *p)
 	ProcInfo *pinfo = p;
 	Channel *waitchan = pinfo->waitchan;
 	char *s = pinfo->srv;
+
+	threadsetname("waitproc");
 	
 	Waitmsg *waitmsg = recvp(waitchan);
 	free(waitmsg);
