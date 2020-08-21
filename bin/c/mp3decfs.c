@@ -6,12 +6,18 @@
 
 char used = 0;
 
+typedef struct {
+	int *pipefds;
+	Channel *cpid;
+	ulong pid;
+} ProcInfo;
+
 static void
 fsopen(Req *r)
 {
 	File *f = r->fid->file;
 
-	if (strcmp(f->name, "audio") == 0) {
+	if (strcmp(f->name, "mp3") == 0) {
 		if (used) {
 			respond(r, "file in use");	
 			return;
@@ -26,7 +32,7 @@ fsdestroyfid(Fid *fid)
 {
 	File *f = fid->file;
 
-	if (fid->omode != -1 && f && strcmp(f->name, "audio") == 0)
+	if (fid->omode != -1 && f && strcmp(f->name, "mp3") == 0)
 		used = 0;
 }
 
@@ -34,24 +40,34 @@ static void
 fswrite(Req *r)
 {
 	File *f = r->fid->file;
+	ProcInfo *pinfo;
 	int *pipefds;
-	char *p;
-	char a;
-	int c;
+	char *path;
+	int fd;
+	int w;
 
-	if (strcmp(f->name, "audio") != 0 || !used) {
+	if (strcmp(f->name, "mp3") != 0 || !used) {
 		respond(r, "no.");
 		return;
 	}
 
-	pipefds = f->aux;
+	pinfo = f->aux;
+	pipefds = pinfo->pipefds;
 
-	p = r->ifcall.data;
-	c = (r->ifcall.count>>1) & ~1;
-	while (c--) {
-		a = *p++;
-		p[-1] = *p;
-		*p++ = a;
+	if (r->ifcall.count == 0) {
+		path = smprint("/proc/%d/note", pinfo->pid);
+		if (path == nil)
+			sysfatal("no memory");
+		fd = open(path, OWRITE);
+		if (fd < 0)
+			sysfatal("open: %r");
+		free(path);
+		if (write(fd, "kill", 4) != 4)
+			sysfatal("write: %r");
+		close(fd);
+		r->ofcall.count = 0;
+		respond(r, nil);
+		threadexitsall(nil);
 	}
 
 	r->ofcall.count = write(pipefds[0], r->ifcall.data, r->ifcall.count);
@@ -66,14 +82,15 @@ Srv fs = {
 };
 
 void
-mp3encproc(void *arg)
+mp3decproc(void *arg)
 {
-	int *pipefds = arg;
-	int mp3fd = open("/dev/mp3", OWRITE);
-	char *argv[] = {"/bin/audio/mp3enc", "-r", nil};
+	ProcInfo *pinfo = arg;
+	int *pipefds = pinfo->pipefds;
+	int audiofd = open("/dev/audio", OWRITE);
+	char *argv[] = {"/bin/audio/mp3dec", nil};
 	
-	if (mp3fd < 0) {
-		fprint(pipefds[1], "open /dev/mp3: %r");
+	if (audiofd < 0) {
+		fprint(pipefds[1], "open /dev/audio: %r");
 		exits("open");
 	}
 	fprint(pipefds[1], "success");
@@ -82,10 +99,10 @@ mp3encproc(void *arg)
 	dup(pipefds[1], 0);
 	close(pipefds[1]);
 	close(1);
-	dup(mp3fd, 1);
-	close(mp3fd);
+	dup(audiofd, 1);
+	close(audiofd);
 
-	procexec(nil, "/bin/audio/mp3enc", argv);
+	procexec(pinfo->cpid, "/bin/audio/mp3dec", argv);
 }
 
 void
@@ -96,6 +113,7 @@ threadmain(int argc, char **argv)
 	Channel *waitchan;
 	char buf[256];
 	int r;
+	ProcInfo pinfo;
 
 	if (pipe(pipefds) < 0)
 		sysfatal("pipe: %r");
@@ -109,9 +127,12 @@ threadmain(int argc, char **argv)
 		exits(nil);
 	}
 
+	pinfo.pipefds = pipefds;
+	pinfo.cpid = chancreate(sizeof(ulong), 0);
+	
 	waitchan = threadwaitchan();
 	
-	proccreate(mp3encproc, pipefds, mainstacksize);
+	proccreate(mp3decproc, &pinfo, mainstacksize);
 
 	if ((r = read(pipefds[0], buf, 255)) < 0)
 		sysfatal("read: %r");
@@ -119,8 +140,10 @@ threadmain(int argc, char **argv)
 	if (strcmp(buf, "success") != 0)
 		sysfatal(buf);
 
+	pinfo.pid = recvul(pinfo.cpid);
+
 	fs.tree = alloctree(nil, nil, DMDIR|0777, nil);
-	createfile(fs.tree->root, "audio", nil, 0222, pipefds);
+	createfile(fs.tree->root, "mp3", nil, 0222, &pinfo);
 	threadpostmountsrv(&fs, nil, "/dev", MBEFORE);
 
 	waitmsg = recvp(waitchan);
