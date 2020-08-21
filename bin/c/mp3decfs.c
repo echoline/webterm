@@ -67,7 +67,7 @@ fswrite(Req *r)
 		close(fd);
 		r->ofcall.count = 0;
 		respond(r, nil);
-		threadexitsall(nil);
+		return;
 	}
 
 	r->ofcall.count = write(pipefds[0], r->ifcall.data, r->ifcall.count);
@@ -144,10 +144,13 @@ threadmain(int argc, char **argv)
 
 	fs.tree = alloctree(nil, nil, DMDIR|0777, nil);
 	createfile(fs.tree->root, "mp3", nil, 0222, &pinfo);
-	threadpostmountsrv(&fs, nil, "/dev", MBEFORE);
+	threadpostmountsrv(&fs, "mp3decfs", "/dev", MBEFORE);
 
 	waitmsg = recvp(waitchan);
 	free(waitmsg);
+
+	unmount("#s/mp3decfs", "/dev");
+	remove("#s/mp3decfs");
 
 	threadexitsall(nil);
 }
