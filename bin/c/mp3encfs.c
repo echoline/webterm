@@ -6,6 +6,12 @@
 
 char used = 0;
 
+typedef struct {
+	int *pipefds;
+	Channel *cpid;
+	ulong pid;
+} ProcInfo;
+
 static void
 fsopen(Req *r)
 {
@@ -34,17 +40,37 @@ static void
 fswrite(Req *r)
 {
 	File *f = r->fid->file;
+	ProcInfo *pinfo;
 	int *pipefds;
 	char *p;
 	char a;
 	int c;
+	char *path;
+	int fd;
 
 	if (strcmp(f->name, "audio") != 0 || !used) {
 		respond(r, "no.");
 		return;
 	}
 
-	pipefds = f->aux;
+	pinfo = f->aux;
+	pipefds = pinfo->pipefds;
+
+	if (r->ifcall.count == 0) {
+		path = smprint("/proc/%d/note", pinfo->pid);
+		if (path == nil)
+			sysfatal("no memory");
+		fd = open(path, OWRITE);
+		if (fd < 0)
+			sysfatal("open: %r");
+		free(path);
+		if (write(fd, "kill", 4) != 4)
+			sysfatal("write: %r");
+		close(fd);
+		r->ofcall.count = 0;
+		respond(r, nil);
+		threadexitsall(nil);
+	}
 
 	p = r->ifcall.data;
 	c = (r->ifcall.count>>1) & ~1;
@@ -68,7 +94,8 @@ Srv fs = {
 void
 mp3encproc(void *arg)
 {
-	int *pipefds = arg;
+	ProcInfo *pinfo = arg;
+	int *pipefds = pinfo->pipefds;
 	int mp3fd = open("/dev/mp3", OWRITE);
 	char *argv[] = {"/bin/audio/mp3enc", "-r", nil};
 	
@@ -85,7 +112,7 @@ mp3encproc(void *arg)
 	dup(mp3fd, 1);
 	close(mp3fd);
 
-	procexec(nil, "/bin/audio/mp3enc", argv);
+	procexec(pinfo->cpid, "/bin/audio/mp3enc", argv);
 }
 
 void
@@ -96,6 +123,7 @@ threadmain(int argc, char **argv)
 	Channel *waitchan;
 	char buf[256];
 	int r;
+	ProcInfo pinfo;
 
 	if (pipe(pipefds) < 0)
 		sysfatal("pipe: %r");
@@ -109,9 +137,12 @@ threadmain(int argc, char **argv)
 		exits(nil);
 	}
 
+	pinfo.pipefds = pipefds;
+	pinfo.cpid = chancreate(sizeof(ulong), 0);
+
 	waitchan = threadwaitchan();
 	
-	proccreate(mp3encproc, pipefds, mainstacksize);
+	proccreate(mp3encproc, &pinfo, mainstacksize);
 
 	if ((r = read(pipefds[0], buf, 255)) < 0)
 		sysfatal("read: %r");
@@ -119,8 +150,10 @@ threadmain(int argc, char **argv)
 	if (strcmp(buf, "success") != 0)
 		sysfatal(buf);
 
+	pinfo.pid = recvul(pinfo.cpid);
+
 	fs.tree = alloctree(nil, nil, DMDIR|0777, nil);
-	createfile(fs.tree->root, "audio", nil, 0222, pipefds);
+	createfile(fs.tree->root, "audio", nil, 0222, &pinfo);
 	threadpostmountsrv(&fs, nil, "/dev", MBEFORE);
 
 	waitmsg = recvp(waitchan);
