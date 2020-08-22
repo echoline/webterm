@@ -179,8 +179,8 @@ a {
 	border: 0px;
 	width: 100%;
 	height: 100%;
-	font-family: monospace;
-	font-size: 13px;
+	#font-family: monospace;
+	#font-size: 13px;
 }
 
 input {
@@ -204,5 +204,7 @@ input {
 
 * {
 	scrollbar-color: #888 white;
+	font-family: VGA;
+	font-size: 16px;
 }
 
