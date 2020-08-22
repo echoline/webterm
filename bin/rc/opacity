@@ -22,6 +22,10 @@ if (! { echo $1 | grep -s '^(0|0?(\.[0-9])[0-9]*|1(\.[0]+)?)$' })
 	usage
 
 if (~ $one 1)
-	echo opacity $1 > /dev/wctl
-if not
-	rc -c 'for (w in /dev/hsys/*/wctl) { echo opacity '^$1^' > $w }' >[2] /dev/null
+	echo 'win('^`{cat /dev/winid}^').style.opacity='^$1^';' > /dev/js
+if not {
+	cd /dev/hsys
+	{ for (i in [0-9]*) {
+		echo 'win('^$i^').style.opacity='^$1^';'
+	} } > /dev/js
+}

@@ -1,13 +1,10 @@
 #!/bin/rc
 
 fn sigint {
-	echo 'unhide' > /dev/wctl
 	label $"l
 }
 
 l=`"{cat /dev/label}
-echo 'hide' > /dev/wctl
 { for(s in $*) { label $"s; cat $"s; } } > /dev/mp3
-echo 'unhide' > /dev/wctl
 label $"l
 
