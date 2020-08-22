@@ -26,6 +26,6 @@ if (~ $one 1)
 if not {
 	cd /dev/hsys
 	{ for (i in [0-9]*) {
-		echo 'win('^$i^').style.opacity='^$1^';'
+		echo 'if (win('^$i^')) win('^$i^').style.opacity='^$1^';'
 	} } > /dev/js
 }
