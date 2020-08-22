@@ -10,6 +10,12 @@ char rwdir = 0;
 
 int winid;
 
+typedef struct {
+	Channel *cpid;
+	char **argv;
+	char *cmd;
+} ProcArgs;
+
 void
 fswrite(Req *r)
 {
@@ -115,6 +121,8 @@ noteproc(void *arg) {
 	int in;
 	int r;
 	int pid;
+
+	threadsetname("noteproc");
 
 	pid = recvul((Channel*)arg);
 	in = open("/dev/cpunote", OREAD);
@@ -251,6 +259,8 @@ completeproc(void *arg)
 	int r;
 	char *b;
 	Dir *dir;
+
+	threadsetname("completeproc");
 	
 	fd = open("/dev/complete", ORDWR);
 	if (fd < 0) {
@@ -299,6 +309,8 @@ completeproc(void *arg)
 void
 waitproc(void *arg)
 {
+	threadsetname("waitproc");
+
 	Waitmsg *msg = recvp((Channel*)arg);
 	free(msg);
 	close(newfd);
@@ -330,12 +342,19 @@ kbdfsproc(void *arg)
 }
 
 void
+cmdproc(void *p)
+{
+	ProcArgs *args = p;
+	procexec(args->cpid, args->cmd, args->argv);
+	sysfatal("exec: %r");
+}
+
+void
 threadmain(int argc, char **argv) {
 	char *cmd = "/bin/rc";
 	char buf[256];
 	int pid;
 	int r;
-	Channel *cpid;
 	Channel *waitchan;
 	Waitmsg *waitmsg;
 	char **args = argv;
@@ -344,6 +363,7 @@ threadmain(int argc, char **argv) {
 	char *name;
 	Dir *dir;
 	char *cmd2;
+	ProcArgs pargs;
 
 	if (argc > 1) {
 		path = getenv("path");
@@ -362,17 +382,15 @@ threadmain(int argc, char **argv) {
 		free(path);
 	}
 
-	r = rfork(RFNAMEG|RFFDG|RFENVG|RFPROC);
+	r = rfork(RFNAMEG|RFFDG|RFENVG);
 	if (r == -1)
 		sysfatal("fork: %r");
-	if (r != 0)
-		exits(nil);
-	cpid = chancreate(sizeof(ulong), 0);
+	pargs.cpid = chancreate(sizeof(ulong), 0);
 	newfd = open("/dev/hsys/new", OREAD);
 	if (newfd < 0)
-		exits("open new");
+		threadexits("open");
 	if ((r = readn(newfd, buf, 12)) != 12)
-		exits("read new");
+		threadexits("read");
 	buf[r] = '\0';
 	winid = atoi(buf);
 
@@ -403,10 +421,12 @@ threadmain(int argc, char **argv) {
 	getwd(cwdir, 8192);
 	threadpostmountsrv(&fs, nil, "/dev", MBEFORE);
 
-	proccreate(noteproc, cpid, mainstacksize);
+	proccreate(noteproc, pargs.cpid, mainstacksize);
 	proccreate(waitproc, waitchan, mainstacksize);
 	proccreate(completeproc, nil, mainstacksize);
-	procexec(cpid, cmd, args);
-	sysfatal("exec: %r");
+	pargs.argv = args;
+	pargs.cmd = cmd;
+	proccreate(cmdproc, &pargs, mainstacksize);
+	threadexits(nil);
 }
 

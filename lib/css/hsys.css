@@ -100,10 +100,13 @@ a {
 	-moz-border-radius-topright:0.25em;
 	border-top-left-radius:0.25em;
 	-moz-border-radius-topleft:0.25em;
+	user-select: none;
 }
 
 .window .title .name {
-	margin-left: 0.75em;
+	position: relative;
+	top: 0.2em;
+	margin-left: 0.5em;
 }
 
 .window .title .button:hover {
@@ -138,6 +141,7 @@ a {
 	-moz-border-radius-topleft:0.35em;
 	padding-left: 0.5em;
 	padding-right: 0.5em;
+	padding-top: 0.3em;
 	margin-right: 0.5em;
 	border-left:2px solid #aaa;
 	border-bottom:2px solid #888;
@@ -179,8 +183,6 @@ a {
 	border: 0px;
 	width: 100%;
 	height: 100%;
-	#font-family: monospace;
-	#font-size: 13px;
 }
 
 input {
@@ -206,5 +208,7 @@ input {
 	scrollbar-color: #888 white;
 	font-family: VGA;
 	font-size: 16px;
+	font-smooth: never;
+	-webkit-font-smoothing : none;
 }
 
