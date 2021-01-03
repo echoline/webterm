@@ -1,0 +1,14 @@
+</$objtype/mkfile
+
+%.ps:DQ:	%.ms macros.ms
+	eval `{doctype macros.ms $stem.ms} | \
+	lp -m.9 -dstdout >$target
+
+%.pdf:DQ: %.ps
+	cat /sys/doc/docfonts $stem.ps >_$stem.ps
+	ps2pdf _$stem.ps $stem.pdf && rm -f _$stem.ps
+
+%.txt:DQ: %.ms
+	cat $stem.ms | sed -u 's,^.PP$,,' | sed -u 's,^.NH$,,' | sed -u 's,^.TL$,,' | sed -u 's,^.AU$,,' | fmt > $target
+
+</sys/src/cmd/mkone
