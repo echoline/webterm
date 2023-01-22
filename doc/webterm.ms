@@ -65,6 +65,10 @@ Cross-site scripting attacks are a huge concern with webterm. For a desktop in a
 .PP
 A final idea that came out of doing this project is draw support for common image formats. Draw supports the Plan 9 image format, both raw and compressed, but it could also directly handle JPEGs, PNGs, etc.
 .NH
+Conclusion
+.PP
+This project gave fascinating insights into what makes Plan 9 such a refined system, especially compared with the modern web. Making webterm also led to ideas for improving browser technology. It was an illuminating exercise in discovering more about what makes Plan 9 exceptional.
+.NH
 References
 .PP
 1.
