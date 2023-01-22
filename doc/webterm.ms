@@ -22,26 +22,26 @@ device for HTML5 programs.
 Drawterm
 .PP
 .I Drawterm
-is a bit hard to explain without some experience with Plan 9. It's basically a lot of the functionality of a Plan 9 kernel implemented in portable C for non-Plan 9 systems. It's a remote desktop program, but it's also more. On Plan 9, the GUI is an integral part of the system, unlike on most Unix-like operating systems. Graphics are handled through the
+is difficult to explain without some experience with Plan 9. It's basically a lot of the functionality of a Plan 9 kernel implemented in portable C for non-Plan 9 systems. It's a remote desktop program, but it's also more. On Plan 9, the GUI is an integral part of the system, unlike on most Unix-like operating systems. Graphics are handled through the
 .CW draw
-device, usually expected at /dev/draw. Typically the kernel sets up a screen framebuffer and connecting to the draw device allows programs to draw graphics primitives to the framebuffer, instead of accessing the screen directly. For example, there is a specific message to the draw device for drawing an ellipse. Drawterm is a draw device and a few other components of a Plan 9 terminal used for logging into a Plan 9 CPU server from a different system. Drawterm differs from a Plan 9 terminal in that it cannot directly run Plan 9 programsr. All of the programs run on the CPU server. For people familiar with SSH, drawterm does everything SSH does for a system where graphics, a mouse, and networking were always part of the design.
+device, usually expected at /dev/draw. Typically the kernel sets up a screen framebuffer. After that, connecting to the draw device allows programs to draw graphics primitives to the framebuffer instead of accessing the screen directly. For example, there is a specific message to the draw device for drawing an ellipse. Drawterm is a draw device and a few other components of a Plan 9 terminal used for logging into a Plan 9 CPU server from a different system. Drawterm differs from a Plan 9 terminal in that it cannot directly run Plan 9 programs. All of the programs run on the CPU server. For people familiar with SSH, drawterm does everything SSH does for a system where graphics, a mouse, and networking were always part of the design.
 .NH
 Webterm
 .PP
 .I Webterm
-is a spinoff of drawterm for browsers. Webterm was an exploration in synthesizing Plan 9 ideas with a browser. Webterm cannot do everything drawterm does, for security reasons. For example, drawterm exposes the shell and storage of the host it runs on, and obviously this cannot (and should not) be done from a webpage. Overall, webterm can do much less than drawterm from a technical viewpoint, but it was easy to implement a filesystem around the Javascript Document Object Model[3], available at /dev/dom, and utilize features built into the browser. For example, alpha transparency was already available as simple CSS. Backwards compatibility with /dev/draw was harder. Webterm follows aiju's way of doing things with her jsdrawterm[4] and compiled the draw code to Javascript with emscripten.
+is a spinoff of drawterm for browsers. Webterm was an exploration in synthesizing Plan 9 ideas with a browser. Webterm cannot do everything drawterm does for security reasons. For example, drawterm exposes the shell and storage of the host it runs on, and obviously this cannot (and should not) be done from a webpage. Overall, webterm can do much less than drawterm from a technical viewpoint, but it was easy to implement a filesystem around the Javascript Document Object Model[3], available at /dev/dom, and utilize features built into the browser. For example, alpha transparency was already available as simple CSS. Backwards compatibility with /dev/draw was harder. Webterm follows aiju's way of doing things with her jsdrawterm[4] and compiled the draw code to Javascript with emscripten.
 .NH
 Login
 .PP
-Plan9front introduced the
-.CW dp9ik
-authentication protocol and associated programs for logging into CPU servers. Before dp9ik, Plan 9-to-Plan 9 CPU and other-to-Plan 9 drawterm connections were authenticated with the older DES-based
-.CW p9sk1
-protocol. Webterm uses a Javascript implementation of dp9ik and the corresponding TLS encryption. The way logins are handled on Plan 9 is a simple and interesting method. On Plan 9, not only is everything a file, the 9P[5] filesystem protocol is a simple bytestream. The authentication is done, then after logging in, with dp9ik the client sends a small shell script. The script sets things up on the server to mount the network connection at
+The way logins are handled on Plan 9 is a simple and interesting method. On Plan 9, not only is everything a file, the 9P[5] filesystem protocol is a simple bytestream. On Plan9front, the authentication is done, then after logging in, the client sends a few shell commands. This script sets things up on the server to mount the network connection at
 .CW /mnt/term,
 with the client exporting a 9P namespace over the connection. In this way the filesystem of the client, in this case webterm, becomes available in the namespace of the login to the server at
 .CW /mnt/term.
-The code for all of this was entirely rewritten in Javascript, though not particularly well, which was a very enlightening exercise in learning about Plan 9's minimal, well-designed, and unique login process.
+The code for all of this and the corresponding TLS encryption was entirely rewritten in Javascript, though not particularly well, which was a very enlightening exercise in learning about Plan 9's minimal, well-designed, and unique login process. Plan9front introduced the
+.CW dp9ik
+authentication protocol and associated programs for logging into CPU servers. Before dp9ik, Plan 9-to-Plan 9 CPU and other-to-Plan 9 drawterm connections were authenticated with the older DES-based
+.CW p9sk1
+protocol.
 .NH
 9P
 .PP
