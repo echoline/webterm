@@ -45,7 +45,7 @@ protocol.
 .NH
 9P
 .PP
-9P is a bytestream filesystem protocol. It can be transported over basically any link, even inside another 9P file. It's a simple protocol with messages for filesystem operations. A file in 9P is a generalized system object that can be opened, read from, written to, closed, etc. A file isn't necessarily data on a disk, it can represent other things. For example, writing raw PCM samples to /dev/audio causes them to come out of the speakers.
+9P is a bytestream filesystem protocol. It can be transported over basically any link, even inside another 9P file. It's a simple protocol with messages for filesystem operations. A file in 9P is a generalized system object that can be opened, read, written, closed, etc. A file isn't necessarily data on a disk; it can represent other things. For example, writing raw PCM samples to /dev/audio causes them to come out of the speakers. This is part of what makes Unix elegant, and Plan 9 extends that concept to its natural conclusion.
 .PP
 Plan 9 is simply a 9P multiplexer, some of the hardware drivers, some Unix-like programs and sometimes the ability to run them, and not much else. This is where it gets a little foreign from a Unix viewpoint. Drawterm really is a Plan 9 kernel, but can't run programs. In some alternate universe where PC's never took off, a draw terminal is the logical completion of the idea of a dumb terminal. It just logs in and shares a screen, keyboard, mouse, and maybe some storage to a server over some kind of link. 9P is the filesystem protocol which allows everything not only to be a file, but to be transported easily across any medium. In this case the browser shares a Javascript 9P filesystem to the CPU which is transported over a websocket.
 .NH
